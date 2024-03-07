@@ -409,3 +409,36 @@ func (b *BeaconState) inactivityScoresVal() []uint64 {
 	copy(res, b.inactivityScores)
 	return res
 }
+
+// ActiveBalanceAtIndex returns the active balance for the given validator.
+//
+// Spec definition:
+//
+//	def get_active_balance(state: BeaconState, validator_index: ValidatorIndex) -> Gwei:
+//	    active_balance_ceil = (
+//	        MIN_ACTIVATION_BALANCE
+//	        if has_eth1_withdrawal_credential(state.validators[validator_index])
+//	        else MAX_EFFECTIVE_BALANCE_EIP7251
+//	    )
+//	    return min(state.balances[validator_index], active_balance_ceil)
+func (b *BeaconState) ActiveBalanceAtIndex(i primitives.ValidatorIndex) (uint64, error) {
+	if b.version <= version.Deneb { // TODO: b.version < version.EIP7251
+		return 0, errNotSupported("ActiveBalanceAtIndex", b.version)
+	}
+
+	b.lock.RLock()
+	defer b.lock.RUnlock()
+
+	// TODO: Multivalue slice stuff?
+
+	if i >= primitives.ValidatorIndex(len(b.validators)) {
+		return 0, errors.Wrapf(consensus_types.ErrOutOfBounds, "validator index %d does not exist", i)
+	}
+	v := b.validators[i]
+	ceiling := params.BeaconConfig().MinActivationBalance
+	if hasETH1WithdrawalCredential(v) {
+		ceiling = params.BeaconConfig().MaxEffectiveBalanceEIP7251
+	}
+
+	return min(b.balances[i], ceiling), nil
+}

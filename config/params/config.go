@@ -41,6 +41,7 @@ type BeaconChainConfig struct {
 
 	// Gwei value constants.
 	MinDepositAmount          uint64 `yaml:"MIN_DEPOSIT_AMOUNT" spec:"true"`          // MinDepositAmount is the minimum amount of Gwei a validator can send to the deposit contract at once (lower amounts will be reverted).
+	MinActivationBalance      uint64 `yaml:"MIN_ACTIVATION_BALANCE"`                  // EIP-7251. TODO: Add spec: "true" to this struct tag.
 	MaxEffectiveBalance       uint64 `yaml:"MAX_EFFECTIVE_BALANCE" spec:"true"`       // MaxEffectiveBalance is the maximal amount of Gwei that is effective for staking.
 	EjectionBalance           uint64 `yaml:"EJECTION_BALANCE" spec:"true"`            // EjectionBalance is the minimal GWei a validator needs to have before ejected.
 	EffectiveBalanceIncrement uint64 `yaml:"EFFECTIVE_BALANCE_INCREMENT" spec:"true"` // EffectiveBalanceIncrement is used for converting the high balance into the low balance for validators.
@@ -120,6 +121,7 @@ type BeaconChainConfig struct {
 	DomainApplicationMask             [4]byte `yaml:"DOMAIN_APPLICATION_MASK" spec:"true"`               // DomainApplicationMask defines the BLS signature domain for application mask.
 	DomainApplicationBuilder          [4]byte `yaml:"DOMAIN_APPLICATION_BUILDER" spec:"true"`            // DomainApplicationBuilder defines the BLS signature domain for application builder.
 	DomainBLSToExecutionChange        [4]byte `yaml:"DOMAIN_BLS_TO_EXECUTION_CHANGE" spec:"true"`        // DomainBLSToExecutionChange defines the BLS signature domain to change withdrawal addresses to ETH1 prefix
+	DomainConsolidation               [4]byte `yaml:"DOMAIN_CONSOLIDATION"`
 
 	// Prysm constants.
 	GweiPerEth                     uint64          // GweiPerEth is the amount of gwei corresponding to 1 eth.
@@ -157,6 +159,10 @@ type BeaconChainConfig struct {
 	CapellaForkEpoch     primitives.Epoch `yaml:"CAPELLA_FORK_EPOCH" spec:"true"`     // CapellaForkEpoch is used to represent the assigned fork epoch for capella.
 	DenebForkVersion     []byte           `yaml:"DENEB_FORK_VERSION" spec:"true"`     // DenebForkVersion is used to represent the fork version for deneb.
 	DenebForkEpoch       primitives.Epoch `yaml:"DENEB_FORK_EPOCH" spec:"true"`       // DenebForkEpoch is used to represent the assigned fork epoch for deneb.
+
+	// EIP Testing
+	EIP7251ForkVersion []byte           `yaml:"EIP7251_FORK_VERSION" spec:"true"`
+	EIP7251ForkEpoch   primitives.Epoch `yaml:"EIP7251_FORK_EPOCH" spec:"true"`
 
 	ForkVersionSchedule map[[fieldparams.VersionLength]byte]primitives.Epoch // Schedule of fork epochs by version.
 	ForkVersionNames    map[[fieldparams.VersionLength]byte]string           // Human-readable names of fork versions.
@@ -225,6 +231,17 @@ type BeaconChainConfig struct {
 	MinEpochsForBlobsSidecarsRequest primitives.Epoch `yaml:"MIN_EPOCHS_FOR_BLOB_SIDECARS_REQUESTS" spec:"true"` // MinEpochsForBlobsSidecarsRequest is the minimum number of epochs the node will keep the blobs for.
 	MaxRequestBlobSidecars           uint64           `yaml:"MAX_REQUEST_BLOB_SIDECARS" spec:"true"`             // MaxRequestBlobSidecars is the maximum number of blobs to request in a single request.
 	MaxRequestBlocksDeneb            uint64           `yaml:"MAX_REQUEST_BLOCKS_DENEB" spec:"true"`              // MaxRequestBlocksDeneb is the maximum number of blocks in a single request after the deneb epoch.
+
+	// Max EB / Consolidation config
+	// TODO: Add spec: "true" to struct tags as they are available for tests.
+	// TODO: Organize
+	MaxConsolidations                   uint64 `yaml:"MAX_CONSOLIDATIONS"`
+	PendingConsolidationsLimit          uint64 `yaml:"PENDING_CONSOLIDATIONS_LIMIT"`
+	CompoundingWithdrawalPrefix         byte   `yaml:"COMPOUNDING_WITHDRAWAL_PREFIX"`
+	MinPerEpochChurnLimitEIP7251        uint64 `yaml:"MIN_PER_EPOCH_CHURN_LIMIT_EIP7251"`
+	MaxPerEpochActivationExitChurnLimit uint64 `yaml:"MAX_PER_EPOCH_ACTIVATION_EXIT_CHURN_LIMIT"`
+	MaxEffectiveBalanceEIP7251          uint64 `yaml:"MAX_EFFECTIVE_BALANCE_EIP7251"`
+	MinSlashingPenaltyQuotientEIP7251   uint64 `yaml:"MIN_SLASHING_PENALTY_QUOTIENT_EIP7251"`
 
 	// Networking Specific Parameters
 	GossipMaxSize                   uint64          `yaml:"GOSSIP_MAX_SIZE" spec:"true"`                    // GossipMaxSize is the maximum allowed size of uncompressed gossip messages.

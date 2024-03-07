@@ -42,6 +42,38 @@ func (b *BeaconState) NextWithdrawalValidatorIndex() (primitives.ValidatorIndex,
 // ExpectedWithdrawals returns the withdrawals that a proposer will need to pack in the next block
 // applied to the current state. It is also used by validators to check that the execution payload carried
 // the right number of withdrawals
+//
+// Spec definition:
+//
+//	def get_expected_withdrawals(state: BeaconState) -> Sequence[Withdrawal]:
+//	    epoch = get_current_epoch(state)
+//	    withdrawal_index = state.next_withdrawal_index
+//	    validator_index = state.next_withdrawal_validator_index
+//	    withdrawals: List[Withdrawal] = []
+//	    bound = min(len(state.validators), MAX_VALIDATORS_PER_WITHDRAWALS_SWEEP)
+//	    for _ in range(bound):
+//	        validator = state.validators[validator_index]
+//	        balance = state.balances[validator_index]
+//	        if is_fully_withdrawable_validator(validator, balance, epoch):
+//	            withdrawals.append(Withdrawal(
+//	                index=withdrawal_index,
+//	                validator_index=validator_index,
+//	                address=ExecutionAddress(validator.withdrawal_credentials[12:]),
+//	                amount=balance,
+//	            ))
+//	            withdrawal_index += WithdrawalIndex(1)
+//	        elif is_partially_withdrawable_validator(validator, balance):
+//	            withdrawals.append(Withdrawal(
+//	                index=withdrawal_index,
+//	                validator_index=validator_index,
+//	                address=ExecutionAddress(validator.withdrawal_credentials[12:]),
+//	                amount=balance - MAX_EFFECTIVE_BALANCE,
+//	            ))
+//	            withdrawal_index += WithdrawalIndex(1)
+//	        if len(withdrawals) == MAX_WITHDRAWALS_PER_PAYLOAD:
+//	            break
+//	        validator_index = ValidatorIndex((validator_index + 1) % len(state.validators))
+//	    return withdrawals
 func (b *BeaconState) ExpectedWithdrawals() ([]*enginev1.Withdrawal, error) {
 	if b.version < version.Capella {
 		return nil, errNotSupported("ExpectedWithdrawals", b.version)
@@ -106,21 +138,80 @@ func hasETH1WithdrawalCredential(val *ethpb.Validator) bool {
 
 // isFullyWithdrawableValidator returns whether the validator is able to perform a full
 // withdrawal. This differ from the spec helper in that the balance > 0 is not
-// checked. This function assumes that the caller holds a lock on the state
+// checked. This function assumes that the caller holds a lock on the state.
+//
+// Spec definition:
+//
+//	def is_fully_withdrawable_validator(validator: Validator, balance: Gwei, epoch: Epoch) -> bool:
+//	    """
+//	    Check if ``validator`` is fully withdrawable.
+//	    """
+//	    return (
+//	        has_execution_withdrawal_credential(validator)  # [Modified in EIP7251]
+//	        and validator.withdrawable_epoch <= epoch
+//	        and balance > 0
+//	    )
 func isFullyWithdrawableValidator(val *ethpb.Validator, epoch primitives.Epoch) bool {
 	if val == nil {
 		return false
 	}
-	return hasETH1WithdrawalCredential(val) && val.WithdrawableEpoch <= epoch
+
+	return HasExecutionWithdrawalCredentials(val) &&
+		val.WithdrawableEpoch <= epoch
 }
 
 // isPartiallyWithdrawable returns whether the validator is able to perform a
-// partial withdrawal. This function assumes that the caller has a lock on the state
+// partial withdrawal. This function assumes that the caller has a lock on the state.
+//
+// Spec definition:
+//
+//	def is_partially_withdrawable_validator(validator: Validator, balance: Gwei) -> bool:
+//	    """
+//	    Check if ``validator`` is partially withdrawable.
+//	    """
+//	    return (
+//	        has_execution_withdrawal_credential(validator) # [Modified in EIP7251]
+//	        and get_validator_excess_balance(validator, balance) > 0
+//	    )
 func isPartiallyWithdrawableValidator(val *ethpb.Validator, balance uint64) bool {
+	// TODO: This method breaks spec tests
+	if val == nil {
+		return false
+	}
+	// TODO: HasExecutionWithdrawalCredentials is already checked in validator excess balance?
+	// TODO: Add tests for this method that work with the old implementation, then add the new
+	// implementation.
+	return HasExecutionWithdrawalCredentials(val) && validatorExcessBalance(val, balance) > 0
+}
+
+// TODO: Delete after spec test issues are resolved.
+func OLD_isPartiallyWithdrawableValidator(val *ethpb.Validator, balance uint64) bool {
 	if val == nil {
 		return false
 	}
 	hasMaxBalance := val.EffectiveBalance == params.BeaconConfig().MaxEffectiveBalance
 	hasExcessBalance := balance > params.BeaconConfig().MaxEffectiveBalance
 	return hasETH1WithdrawalCredential(val) && hasExcessBalance && hasMaxBalance
+}
+
+// validatorExcessBalance returns the gwei amount considered as "excess".
+//
+// Spec definition:
+//
+//	def get_validator_excess_balance(validator: Validator, balance: Gwei) -> Gwei:
+//	    """
+//	    Get excess balance for partial withdrawals for ``validator``.
+//	    """
+//	    if has_compounding_withdrawal_credential(validator) and balance > MAX_EFFECTIVE_BALANCE_EIP7251:
+//	        return balance - MAX_EFFECTIVE_BALANCE_EIP7251
+//	    elif has_eth1_withdrawal_credential(validator) and balance > MIN_ACTIVATION_BALANCE:
+//	        return balance - MIN_ACTIVATION_BALANCE
+//	    return Gwei(0)
+func validatorExcessBalance(val *ethpb.Validator, balance uint64) uint64 {
+	if HasCompoundingWithdrawalCredential(val) && balance > params.BeaconConfig().MaxEffectiveBalanceEIP7251 {
+		return balance - params.BeaconConfig().MaxEffectiveBalanceEIP7251
+	} else if hasETH1WithdrawalCredential(val) && balance > params.BeaconConfig().MinActivationBalance {
+		return balance - params.BeaconConfig().MinActivationBalance
+	}
+	return 0
 }

@@ -3,6 +3,8 @@ load("@prysm//tools/go:def.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
+        "beacon_state_minimal.go", # gazelle:keep
+        "beacon_state_mainnet.go",
         "doc.go",
         "error.go",
         "getters_attestation.go",
@@ -37,10 +39,8 @@ go_library(
         "ssz.go",
         "state_trie.go",
         "types.go",
-    ] + select({
-        "//config:mainnet": ["beacon_state_mainnet.go"],
-        "//config:minimal": ["beacon_state_minimal.go"],
-    }),
+        "validator_withdrawal_credentials.go",
+    ],
     importpath = "github.com/prysmaticlabs/prysm/v5/beacon-chain/state/state-native",
     visibility = ["//visibility:public"],
     deps = [
@@ -102,6 +102,7 @@ go_test(
         "state_test.go",
         "state_trie_test.go",
         "types_test.go",
+        "validator_withdrawal_credentials_test.go",
     ],
     data = glob(["testdata/**"]),
     embed = [":go_default_library"],

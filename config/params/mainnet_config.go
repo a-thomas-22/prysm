@@ -166,6 +166,7 @@ var mainnetBeaconConfig = &BeaconChainConfig{
 	DomainApplicationMask:             bytesutil.Uint32ToBytes4(0x00000001),
 	DomainApplicationBuilder:          bytesutil.Uint32ToBytes4(0x00000001),
 	DomainBLSToExecutionChange:        bytesutil.Uint32ToBytes4(0x0A000000),
+	DomainConsolidation:               bytesutil.Uint32ToBytes4(0x0B000000),
 
 	// Prysm constants.
 	GweiPerEth:                     1000000000,
@@ -207,6 +208,10 @@ var mainnetBeaconConfig = &BeaconChainConfig{
 	CapellaForkEpoch:     mainnetCapellaForkEpoch,
 	DenebForkVersion:     []byte{4, 0, 0, 0},
 	DenebForkEpoch:       mainnetDenebForkEpoch,
+
+	// EIP Forks
+	EIP7251ForkVersion: []byte{6, 0, 0, 0},
+	EIP7251ForkEpoch:   18446744073709551615,
 
 	// New values introduced in Altair hard fork 1.
 	// Participation flag indices.
@@ -250,6 +255,15 @@ var mainnetBeaconConfig = &BeaconChainConfig{
 	TerminalTotalDifficulty:          "58750000000000000000000", // Estimated: Sept 15, 2022
 	EthBurnAddressHex:                "0x0000000000000000000000000000000000000000",
 	DefaultBuilderGasLimit:           uint64(30000000),
+
+	// EIP-7251
+	MinPerEpochChurnLimitEIP7251:        128000000000,
+	MaxPerEpochActivationExitChurnLimit: 256000000000,
+	MinActivationBalance:                32000000000,
+	MaxEffectiveBalanceEIP7251:          2048000000000,
+	MinSlashingPenaltyQuotientEIP7251:   65536,
+	MaxConsolidations:                   1,
+	CompoundingWithdrawalPrefix:         byte(2),
 
 	// Mevboost circuit breaker
 	MaxBuilderConsecutiveMissedSlots: 3,

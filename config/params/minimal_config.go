@@ -92,6 +92,14 @@ func MinimalSpecConfig() *BeaconChainConfig {
 	minimalConfig.DenebForkVersion = []byte{4, 0, 0, 1}
 	minimalConfig.DenebForkEpoch = math.MaxUint64
 
+	// EIP Forks
+	minimalConfig.EIP7251ForkVersion = []byte{6, 0, 0, 0}
+	minimalConfig.EIP7251ForkEpoch = math.MaxUint64
+
+	// EIP-7251
+	minimalConfig.MinPerEpochChurnLimitEIP7251 = 64000000000
+	minimalConfig.MaxPerEpochActivationExitChurnLimit = 128000000000
+
 	minimalConfig.SyncCommitteeSize = 32
 	minimalConfig.InactivityScoreBias = 4
 	minimalConfig.EpochsPerSyncCommitteePeriod = 8
