@@ -3,8 +3,8 @@ load("@prysm//tools/go:def.bzl", "go_library", "go_test")
 go_library(
     name = "go_default_library",
     srcs = [
-        "beacon_state_minimal.go", # gazelle:keep
         "beacon_state_mainnet.go",
+        "beacon_state_minimal.go",  # keep
         "doc.go",
         "error.go",
         "getters_attestation.go",
@@ -64,6 +64,7 @@ go_library(
         "//encoding/ssz:go_default_library",
         "//math:go_default_library",
         "//proto/engine/v1:go_default_library",
+        "//proto/eth/v1:go_default_library",
         "//proto/prysm/v1alpha1:go_default_library",
         "//runtime/version:go_default_library",
         "//time/slots:go_default_library",
