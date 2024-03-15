@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
-	"github.com/prysmaticlabs/prysm/v5/beacon-chain/core/helpers"
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/core/signing"
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/state"
 	"github.com/prysmaticlabs/prysm/v5/config/params"
@@ -136,6 +135,8 @@ func BatchVerifyDepositsSignatures(ctx context.Context, deposits []*ethpb.Deposi
 //
 //	pubkey = deposit.data.pubkey
 //	amount = deposit.data.amount
+//
+// TODO: This is apply_deposit
 //	validator_pubkeys = [v.pubkey for v in state.validators]
 //	if pubkey not in validator_pubkeys:
 //	    # Verify the deposit signature (proof of possession) which is not checked by the deposit contract
@@ -146,16 +147,12 @@ func BatchVerifyDepositsSignatures(ctx context.Context, deposits []*ethpb.Deposi
 //	    )
 //	    domain = compute_domain(DOMAIN_DEPOSIT)  # Fork-agnostic domain since deposits are valid across forks
 //	    signing_root = compute_signing_root(deposit_message, domain)
-//	    if not bls.Verify(pubkey, signing_root, deposit.data.signature):
-//	        return
-//
-//	    # Add validator and balance entries
-//	    state.validators.append(get_validator_from_deposit(state, deposit))
-//	    state.balances.append(amount)
+//      if bls.Verify(pubkey, signing_root, signature):
+//          add_validator_to_registry(state, pubkey, withdrawal_credentials, amount) // TODO: Missing spec def here
 //	else:
 //	    # Increase balance by deposit amount
 //	    index = ValidatorIndex(validator_pubkeys.index(pubkey))
-//	    increase_balance(state, index, amount)
+//	    state.pending_balance_deposits.append(PendingBalanceDeposit(index, amount)) # [Modified in EIP-7251]
 func ProcessDeposit(beaconState state.BeaconState, deposit *ethpb.Deposit, verifySignature bool) (state.BeaconState, bool, error) {
 	var newValidator bool
 	if err := verifyDeposit(beaconState, deposit); err != nil {
@@ -183,10 +180,6 @@ func ProcessDeposit(beaconState state.BeaconState, deposit *ethpb.Deposit, verif
 			}
 		}
 
-		effectiveBalance := amount - (amount % params.BeaconConfig().EffectiveBalanceIncrement)
-		if params.BeaconConfig().MaxEffectiveBalance < effectiveBalance {
-			effectiveBalance = params.BeaconConfig().MaxEffectiveBalance
-		}
 		if err := beaconState.AppendValidator(&ethpb.Validator{
 			PublicKey:                  pubKey,
 			WithdrawalCredentials:      deposit.Data.WithdrawalCredentials,
@@ -194,18 +187,18 @@ func ProcessDeposit(beaconState state.BeaconState, deposit *ethpb.Deposit, verif
 			ActivationEpoch:            params.BeaconConfig().FarFutureEpoch,
 			ExitEpoch:                  params.BeaconConfig().FarFutureEpoch,
 			WithdrawableEpoch:          params.BeaconConfig().FarFutureEpoch,
-			EffectiveBalance:           effectiveBalance,
 		}); err != nil {
 			return nil, newValidator, err
 		}
 		newValidator = true
-		if err := beaconState.AppendBalance(amount); err != nil {
+		if err := beaconState.AppendPendingBalanceDeposit(index, amount); err != nil {
 			return nil, newValidator, err
 		}
-	} else if err := helpers.IncreaseBalance(beaconState, index, amount); err != nil {
-		return nil, newValidator, err
-	}
-
+	} else {
+		if err := beaconState.AppendPendingBalanceDeposit(index, amount); err != nil {
+			return nil, newValidator, err
+		}
+	} 
 	return beaconState, newValidator, nil
 }
 

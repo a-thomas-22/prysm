@@ -87,6 +87,7 @@ type WriteOnlyBeaconState interface {
 	WriteOnlyParticipation
 	WriteOnlyInactivity
 	WriteOnlySyncCommittee
+	WriteOnlyPendingBalanceDeposits
 	SetGenesisTime(val uint64) error
 	SetGenesisValidatorsRoot(val []byte) error
 	SetSlot(val primitives.Slot) error
@@ -281,4 +282,8 @@ type WriteOnlyInactivity interface {
 type WriteOnlySyncCommittee interface {
 	SetCurrentSyncCommittee(val *ethpb.SyncCommittee) error
 	SetNextSyncCommittee(val *ethpb.SyncCommittee) error
+}
+
+type WriteOnlyPendingBalanceDeposits interface {
+	AppendPendingBalanceDeposit(index primitives.ValidatorIndex, amount uint64) error
 }
