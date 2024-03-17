@@ -3,7 +3,7 @@ package state_native
 import (
 	"github.com/prysmaticlabs/prysm/v5/config/features"
 	"github.com/prysmaticlabs/prysm/v5/consensus-types/primitives"
-	ethpbv1 "github.com/prysmaticlabs/prysm/v5/proto/eth/v1"
+	ethpb "github.com/prysmaticlabs/prysm/v5/proto/prysm/v1alpha1"
 )
 
 func (b *BeaconState) AppendPendingBalanceDeposit(index primitives.ValidatorIndex, amount uint64) error {
@@ -11,7 +11,7 @@ func (b *BeaconState) AppendPendingBalanceDeposit(index primitives.ValidatorInde
 		panic("not implemented")
 	} else {
 		b.lock.Lock()
-		b.pendingBalanceDeposits = append(b.pendingBalanceDeposits, &ethpbv1.PendingBalanceDeposit{Index: uint64(index), Amount: amount})
+		b.pendingBalanceDeposits = append(b.pendingBalanceDeposits, &ethpb.PendingBalanceDeposit{Index: uint64(index), Amount: amount})
 		b.lock.Unlock()
 	}
 

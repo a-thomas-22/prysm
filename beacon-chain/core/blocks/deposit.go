@@ -136,7 +136,7 @@ func BatchVerifyDepositsSignatures(ctx context.Context, deposits []*ethpb.Deposi
 //	pubkey = deposit.data.pubkey
 //	amount = deposit.data.amount
 //
-// TODO: This is apply_deposit
+// TODO: This is apply_deposit, refactor to another function for readability.
 //	validator_pubkeys = [v.pubkey for v in state.validators]
 //	if pubkey not in validator_pubkeys:
 //	    # Verify the deposit signature (proof of possession) which is not checked by the deposit contract
@@ -180,6 +180,9 @@ func ProcessDeposit(beaconState state.BeaconState, deposit *ethpb.Deposit, verif
 			}
 		}
 
+		// NOTE: This is get_validator_from_deposit. Changed in EIP-7251.
+		// Question: is it backwards compatibile with other forks?
+		// TODO: Delete this note.
 		if err := beaconState.AppendValidator(&ethpb.Validator{
 			PublicKey:                  pubKey,
 			WithdrawalCredentials:      deposit.Data.WithdrawalCredentials,
@@ -187,6 +190,7 @@ func ProcessDeposit(beaconState state.BeaconState, deposit *ethpb.Deposit, verif
 			ActivationEpoch:            params.BeaconConfig().FarFutureEpoch,
 			ExitEpoch:                  params.BeaconConfig().FarFutureEpoch,
 			WithdrawableEpoch:          params.BeaconConfig().FarFutureEpoch,
+			EffectiveBalance: 0, // New in EIP-7251
 		}); err != nil {
 			return nil, newValidator, err
 		}

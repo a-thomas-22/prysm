@@ -14,7 +14,6 @@ import (
 	"github.com/prysmaticlabs/prysm/v5/config/features"
 	"github.com/prysmaticlabs/prysm/v5/consensus-types/primitives"
 	enginev1 "github.com/prysmaticlabs/prysm/v5/proto/engine/v1"
-	ethpbv1 "github.com/prysmaticlabs/prysm/v5/proto/eth/v1"
 	ethpb "github.com/prysmaticlabs/prysm/v5/proto/prysm/v1alpha1"
 )
 
@@ -67,9 +66,9 @@ type BeaconState struct {
 	earliestExitEpoch             primitives.Epoch
 	consolidationBalanceToConsume uint64
 	earliestConsolidationEpoch    primitives.Epoch
-	pendingBalanceDeposits        []*ethpbv1.PendingBalanceDeposit // pending_balance_deposits: List[PendingBalanceDeposit, PENDING_BALANCE_DEPOSITS_LIMIT]  # [New in EIP-7251]
-	pendingPartialWithdrawals     []*ethpbv1.PartialWithdrawal     // pending_partial_withdrawals: List[PartialWithdrawal, PENDING_PARTIAL_WITHDRAWALS_LIMIT]  # [New in EIP-7251]
-	pendingConsolidations         []*ethpbv1.PendingConsolidation  // pending_consolidations: List[PendingConsolidation, PENDING_CONSOLIDATIONS_LIMIT]  # [New in EIP-7251]
+	pendingBalanceDeposits        []*ethpb.PendingBalanceDeposit // pending_balance_deposits: List[PendingBalanceDeposit, PENDING_BALANCE_DEPOSITS_LIMIT]  # [New in EIP-7251]
+	pendingPartialWithdrawals     []*ethpb.PartialWithdrawal     // pending_partial_withdrawals: List[PartialWithdrawal, PENDING_PARTIAL_WITHDRAWALS_LIMIT]  # [New in EIP-7251]
+	pendingConsolidations         []*ethpb.PendingConsolidation  // pending_consolidations: List[PendingConsolidation, PENDING_CONSOLIDATIONS_LIMIT]  # [New in EIP-7251]
 
 	id                    uint64
 	lock                  sync.RWMutex
