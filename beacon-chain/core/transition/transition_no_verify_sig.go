@@ -378,6 +378,21 @@ func VerifyBlobCommitmentCount(blk interfaces.ReadOnlyBeaconBlock) error {
 	return nil
 }
 
+func eip7251Operations(
+	ctx context.Context,
+	st state.BeaconState,
+	block interfaces.ReadOnlyBeaconBlock) (state.BeaconState, error) {
+
+	st, err := altairOperations(ctx, st, block)
+	if err != nil {
+		return nil, err
+	}
+
+
+	// TODO
+	return st, nil
+}
+
 // This calls altair block operations.
 func altairOperations(
 	ctx context.Context,

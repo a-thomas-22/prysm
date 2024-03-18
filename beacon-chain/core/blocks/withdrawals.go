@@ -118,66 +118,36 @@ func ValidateBLSToExecutionChange(st state.ReadOnlyBeaconState, signed *ethpb.Si
 // ProcessWithdrawals processes the validator withdrawals from the provided execution payload
 // into the beacon state.
 //
-// Spec pseudocode definition:
+// Spec pseudocode definitions:
 //
-//   def get_expected_withdrawals(state: BeaconState) -> Sequence[Withdrawal]:
-//       epoch = get_current_epoch(state)
-//       withdrawal_index = state.next_withdrawal_index
-//       validator_index = state.next_withdrawal_validator_index
-//       withdrawals: List[Withdrawal] = []
-//       consumed = 0
-//       for withdrawal in state.pending_partial_withdrawals:
-//           if withdrawal.withdrawable_epoch > epoch or len(withdrawals) == MAX_WITHDRAWALS_PER_PAYLOAD // 2:
-//               break
+//   def process_withdrawals(state: BeaconState, payload: ExecutionPayload) -> None:
+//       expected_withdrawals = get_expected_withdrawals(state)
+//       assert len(payload.withdrawals) == len(expected_withdrawals)
 //   
-//           validator = state.validators[withdrawal.index]
-//           if validator.exit_epoch == FAR_FUTURE_EPOCH and state.balances[withdrawal.index] > MIN_ACTIVATION_BALANCE:
-//               withdrawable_balance = min(state.balances[withdrawal.index] - MIN_ACTIVATION_BALANCE, withdrawal.amount)
-//               withdrawals.append(Withdrawal(
-//                   index=withdrawal_index,
-//                   validator_index=withdrawal.index,
-//                   address=ExecutionAddress(validator.withdrawal_credentials[12:]),
-//                   amount=withdrawable_balance,
-//               ))
-//               withdrawal_index += WithdrawalIndex(1)
-//               consumed += 1
+//       for expected_withdrawal, withdrawal in zip(expected_withdrawals, payload.withdrawals):
+//           assert withdrawal == expected_withdrawal
+//           decrease_balance(state, withdrawal.validator_index, withdrawal.amount)
 //   
-//       state.pending_partial_withdrawals = state.pending_partial_withdrawals[consumed:] 
+//       # Update the next withdrawal index if this block contained withdrawals
+//       if len(expected_withdrawals) != 0:
+//           latest_withdrawal = expected_withdrawals[-1]
+//           state.next_withdrawal_index = WithdrawalIndex(latest_withdrawal.index + 1)
 //   
-//       # Sweep for remaining.
-//       bound = min(len(state.validators), MAX_VALIDATORS_PER_WITHDRAWALS_SWEEP)
-//       for _ in range(bound):
-//           validator = state.validators[validator_index]
-//           balance = state.balances[validator_index]
-//           if is_fully_withdrawable_validator(validator, balance, epoch):
-//               withdrawals.append(Withdrawal(
-//                   index=withdrawal_index,
-//                   validator_index=validator_index,
-//                   address=ExecutionAddress(validator.withdrawal_credentials[12:]),
-//                   amount=balance,
-//               ))
-//               withdrawal_index += WithdrawalIndex(1)
-//           elif is_partially_withdrawable_validator(validator, balance):
-//               withdrawals.append(Withdrawal(
-//                   index=withdrawal_index,
-//                   validator_index=validator_index,
-//                   address=ExecutionAddress(validator.withdrawal_credentials[12:]),
-//                   amount=get_validator_excess_balance(validator, balance),  # [New in EIP7251]
-//               ))
-//               withdrawal_index += WithdrawalIndex(1)
-//           if len(withdrawals) == MAX_WITHDRAWALS_PER_PAYLOAD:
-//               break
-//           validator_index = ValidatorIndex((validator_index + 1) % len(state.validators))
-//       return withdrawals
+//       # Update the next validator index to start the next withdrawal sweep
+//       if len(expected_withdrawals) == MAX_WITHDRAWALS_PER_PAYLOAD:
+//           # Next sweep starts after the latest withdrawal's validator index
+//           next_validator_index = ValidatorIndex((expected_withdrawals[-1].validator_index + 1) % len(state.validators))
+//           state.next_withdrawal_validator_index = next_validator_index
+//       else:
+//           # Advance sweep by the max length of the sweep if there was not a full set of withdrawals
+//           next_index = state.next_withdrawal_validator_index + MAX_VALIDATORS_PER_WITHDRAWALS_SWEEP
+//           next_validator_index = ValidatorIndex(next_index % len(state.validators))
+//           state.next_withdrawal_validator_index = next_validator_index
 func ProcessWithdrawals(st state.BeaconState, executionData interfaces.ExecutionData) (state.BeaconState, error) {
 	expectedWithdrawals, err := st.ExpectedWithdrawals()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get expected withdrawals")
 	}
-
-	// TODO: EIP-7251 consume pending partial withdrawals first.
-
-
 
 	var wdRoot [32]byte
 	if executionData.IsBlinded() {
