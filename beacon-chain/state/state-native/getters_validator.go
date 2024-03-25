@@ -422,7 +422,7 @@ func (b *BeaconState) inactivityScoresVal() []uint64 {
 //	    )
 //	    return min(state.balances[validator_index], active_balance_ceil)
 func (b *BeaconState) ActiveBalanceAtIndex(i primitives.ValidatorIndex) (uint64, error) {
-	if b.version <= version.Deneb { // TODO: b.version < version.EIP7251
+	if b.version < version.EIP7251 {
 		return 0, errNotSupported("ActiveBalanceAtIndex", b.version)
 	}
 
@@ -435,8 +435,10 @@ func (b *BeaconState) ActiveBalanceAtIndex(i primitives.ValidatorIndex) (uint64,
 		return 0, errors.Wrapf(consensus_types.ErrOutOfBounds, "validator index %d does not exist", i)
 	}
 	v := b.validators[i]
-	ceiling := params.BeaconConfig().MinActivationBalance
+	var ceiling uint64
 	if hasETH1WithdrawalCredential(v) {
+		ceiling = params.BeaconConfig().MinActivationBalance
+	} else {
 		ceiling = params.BeaconConfig().MaxEffectiveBalanceEIP7251
 	}
 

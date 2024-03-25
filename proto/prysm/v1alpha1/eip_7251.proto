@@ -44,7 +44,7 @@ message PartialWithdrawal {
 }
 
 message ExecutionLayerWithdrawalRequest {
-    // TODO: document this field.
+    // Ethereum address (20 byte address).
     bytes source_address = 1 [(ethereum.eth.ext.ssz_size) = "20"];
 
     // 48 byte BLS public key of the validator.
@@ -60,6 +60,7 @@ message Consolidation {
     // Validator to which the funds will be moved.
     uint64 target_index = 2;
     // TODO: document this field.
+    // TODO: Is this the target epoch? Minimum epoch? Why does it exist?
     uint64 epoch = 3;
 }
 

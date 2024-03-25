@@ -401,10 +401,27 @@ func ComputeProposerIndex(bState state.ReadOnlyValidators, activeIndices []primi
 //	  """
 //	  return (
 //	      validator.activation_eligibility_epoch == FAR_FUTURE_EPOCH
-//	      and validator.effective_balance >= MIN_ACTIVATION_BALANCE  # [Modified in EIP7251]
+//	      and validator.effective_balance == MAX_EFFECTIVE_BALANCE
 //	  )
 func IsEligibleForActivationQueue(validator *ethpb.Validator) bool {
 	return isEligibileForActivationQueue(validator.ActivationEligibilityEpoch, validator.EffectiveBalance)
+}
+
+// IsEligibleForActivationQueue checks if the validator is eligible to
+// be placed into the activation queue.
+//
+// Spec pseudocode definition:
+//
+//	def is_eligible_for_activation_queue(validator: Validator) -> bool:
+//	  """
+//	  Check if ``validator`` is eligible to be placed into the activation queue.
+//	  """
+//	  return (
+//	      validator.activation_eligibility_epoch == FAR_FUTURE_EPOCH
+//	      and validator.effective_balance >= MIN_ACTIVATION_BALANCE  # [Modified in EIP7251]
+//	  )
+func IsEligibleForActivationQueueEIP7521(validator *ethpb.Validator) bool {
+	return isEligibileForActivationQueueEIP7251(validator.ActivationEligibilityEpoch, validator.EffectiveBalance)
 }
 
 // IsEligibleForActivationQueueUsingTrie checks if the read-only validator is eligible to
@@ -416,7 +433,13 @@ func IsEligibleForActivationQueueUsingTrie(validator state.ReadOnlyValidator) bo
 // isEligibleForActivationQueue carries out the logic for IsEligibleForActivationQueue*
 func isEligibileForActivationQueue(activationEligibilityEpoch primitives.Epoch, effectiveBalance uint64) bool {
 	return activationEligibilityEpoch == params.BeaconConfig().FarFutureEpoch &&
-		effectiveBalance == params.BeaconConfig().MinActivationBalance
+		effectiveBalance == params.BeaconConfig().MaxEffectiveBalance
+}
+
+// isEligibileForActivationQueueEIP7521 carries out the logic for IsEligibleForActivationQueue*
+func isEligibileForActivationQueueEIP7251(activationEligibilityEpoch primitives.Epoch, effectiveBalance uint64) bool {
+	return activationEligibilityEpoch == params.BeaconConfig().FarFutureEpoch &&
+		effectiveBalance >= params.BeaconConfig().MinActivationBalance
 }
 
 // IsEligibleForActivation checks if the validator is eligible for activation.
