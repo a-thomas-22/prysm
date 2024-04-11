@@ -210,6 +210,16 @@ const (
 	NextWithdrawalIndex
 	NextWithdrawalValidatorIndex
 	HistoricalSummaries
+	// EIP-7251
+	DepositBalanceToConsume
+	ExitBalanceToConsume
+	EarliestExitEpoch
+	ConsolidationBalanceToConsume
+	EarliestConsolidationEpoch
+	PendingBalanceDeposits
+	PendingPartialWithdrawals
+	PendingConsolidations
+	// -- EIP-7251
 )
 
 // Enumerator keeps track of the number of states created since the node's start.

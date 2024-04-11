@@ -266,3 +266,7 @@ func validatorExcessBalance(val *ethpb.Validator, balance uint64) uint64 {
 	}
 	return 0
 }
+
+func (b *BeaconState) pendingPartialWithdrawalsVal() []*ethpb.PartialWithdrawal {
+	return ethpb.CopyPendingPartialWithdrawals(b.pendingPartialWithdrawals)
+}

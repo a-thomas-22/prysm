@@ -862,3 +862,47 @@ func CopyHistoricalSummaries(summaries []*HistoricalSummary) []*HistoricalSummar
 	}
 	return newSummaries
 }
+
+// CopyPartialWithdrawals copies the provided partial withdrawals.
+func CopyPendingPartialWithdrawals(pws []*PartialWithdrawal) []*PartialWithdrawal {
+	if pws == nil {
+		return nil
+	}
+	newPws := make([]*PartialWithdrawal, len(pws))
+	for i, pw := range pws {
+		newPws[i] = &PartialWithdrawal{
+			Index:             pw.Index,
+			Amount:            pw.Amount,
+			WithdrawableEpoch: pw.WithdrawableEpoch,
+		}
+	}
+	return newPws
+}
+
+func CopyPendingConsolidations(pcs []*PendingConsolidation) []*PendingConsolidation {
+	if pcs == nil {
+		return nil
+	}
+	newPcs := make([]*PendingConsolidation, len(pcs))
+	for i, pc := range pcs {
+		newPcs[i] = &PendingConsolidation{
+			SourceIndex: pc.SourceIndex,
+			TargetIndex: pc.TargetIndex,
+		}
+	}
+	return newPcs
+}
+
+func CopyPendingBalanceDeposits(pbd []*PendingBalanceDeposit) []*PendingBalanceDeposit {
+	if pbd == nil {
+		return nil
+	}
+	newPbd := make([]*PendingBalanceDeposit, len(pbd))
+	for i, pb := range pbd {
+		newPbd[i] = &PendingBalanceDeposit{
+			Index:  pb.Index,
+			Amount: pb.Amount,
+		}
+	}
+	return newPbd
+}

@@ -29,7 +29,7 @@ import (
 //	    process_slashings_reset(state)
 //	    process_randao_mixes_reset(state)
 func ProcessEpoch(ctx context.Context, state state.BeaconState) (state.BeaconState, error) {
-	ctx, span := trace.StartSpan(ctx, "eip7521.ProcessEpoch")
+	ctx, span := trace.StartSpan(ctx, "eip7251.ProcessEpoch")
 	defer span.End()
 
 	if state == nil || state.IsNil() {

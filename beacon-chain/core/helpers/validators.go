@@ -420,7 +420,7 @@ func IsEligibleForActivationQueue(validator *ethpb.Validator) bool {
 //	      validator.activation_eligibility_epoch == FAR_FUTURE_EPOCH
 //	      and validator.effective_balance >= MIN_ACTIVATION_BALANCE  # [Modified in EIP7251]
 //	  )
-func IsEligibleForActivationQueueEIP7521(validator *ethpb.Validator) bool {
+func IsEligibleForActivationQueueEIP7251(validator *ethpb.Validator) bool {
 	return isEligibileForActivationQueueEIP7251(validator.ActivationEligibilityEpoch, validator.EffectiveBalance)
 }
 
@@ -436,7 +436,7 @@ func isEligibileForActivationQueue(activationEligibilityEpoch primitives.Epoch, 
 		effectiveBalance == params.BeaconConfig().MaxEffectiveBalance
 }
 
-// isEligibileForActivationQueueEIP7521 carries out the logic for IsEligibleForActivationQueue*
+// isEligibileForActivationQueueEIP7251 carries out the logic for IsEligibleForActivationQueue*
 func isEligibileForActivationQueueEIP7251(activationEligibilityEpoch primitives.Epoch, effectiveBalance uint64) bool {
 	return activationEligibilityEpoch == params.BeaconConfig().FarFutureEpoch &&
 		effectiveBalance >= params.BeaconConfig().MinActivationBalance
