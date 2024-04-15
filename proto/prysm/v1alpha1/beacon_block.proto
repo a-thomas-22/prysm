@@ -817,6 +817,7 @@ message BeaconBlockEIP7251 {
     BeaconBlockBodyEIP7251 body = 5;
 }
 
+// Beacon block body for EIP-7251. This is an extension of the BeaconBlockBodyDeneb with consolidation field.
 message BeaconBlockBodyEIP7251 {
     // The validators RANDAO reveal 96 byte value.
     bytes randao_reveal = 1 [(ethereum.eth.ext.ssz_size) = "96"];
@@ -857,5 +858,5 @@ message BeaconBlockBodyEIP7251 {
 
     repeated bytes blob_kzg_commitments = 12 [(ethereum.eth.ext.ssz_size) = "?,48", (ethereum.eth.ext.ssz_max)  = "max_blob_commitments.size"];
 
-    repeated Consolidation consolidations = 13 [(ethereum.eth.ext.ssz_max) = "1"];
+    repeated Consolidation consolidations = 13 [(ethereum.eth.ext.ssz_max) = "1"]; // New in EIP-7251.
 }

@@ -429,8 +429,6 @@ func (b *BeaconState) ActiveBalanceAtIndex(i primitives.ValidatorIndex) (uint64,
 	b.lock.RLock()
 	defer b.lock.RUnlock()
 
-	// TODO: Multivalue slice stuff?
-
 	if i >= primitives.ValidatorIndex(len(b.validators)) {
 		return 0, errors.Wrapf(consensus_types.ErrOutOfBounds, "validator index %d does not exist", i)
 	}
@@ -443,4 +441,32 @@ func (b *BeaconState) ActiveBalanceAtIndex(i primitives.ValidatorIndex) (uint64,
 	}
 
 	return min(b.balances[i], ceiling), nil
+}
+
+// PendingBalanceToWithdraw returns the sum of all pending withdrawals for the given validator.
+//
+// Spec definition:
+//
+//	def get_pending_balance_to_withdraw(state: BeaconState, validator_index: ValidatorIndex) -> Gwei:
+//	    return sum(
+//	        withdrawal.amount for withdrawal in state.pending_partial_withdrawals if withdrawal.index == validator_index)
+func (b *BeaconState) PendingBalanceToWithdraw(idx primitives.ValidatorIndex) (uint64, error) {
+	if b.version < version.EIP7251 {
+		return 0, errNotSupported("PendingBalanceToWithdraw", b.version)
+	}
+
+	b.lock.RLock()
+	defer b.lock.RUnlock()
+
+	// TODO: Consider maintaining this value in the state, if it's a potential bottleneck.
+	// This is n*m complexity, but this method can only be called
+	// MAX_WITHDRAWAL_REQUESTS_PER_PAYLOAD per slot. A more optimized storage indexing such as a
+	// lookup map could be used to reduce the complexity marginally.
+	var sum uint64
+	for _, w := range b.pendingPartialWithdrawals {
+		if w.Index == idx {
+			sum += w.Amount
+		}
+	}
+	return sum, nil
 }

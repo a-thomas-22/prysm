@@ -287,3 +287,6 @@ type WriteOnlySyncCommittee interface {
 type WriteOnlyPendingBalanceDeposits interface {
 	AppendPendingBalanceDeposit(index primitives.ValidatorIndex, amount uint64) error
 }
+
+type WriteOnlyEIP7241 interface {
+}

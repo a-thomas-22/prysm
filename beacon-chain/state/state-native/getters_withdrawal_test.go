@@ -71,21 +71,29 @@ func TestIsFullyWithdrawableValidator(t *testing.T) {
 		WithdrawalCredentials: creds,
 		WithdrawableEpoch:     2,
 	}
-	require.Equal(t, false, isFullyWithdrawableValidator(v, 3))
+	bal := params.BeaconConfig().MaxEffectiveBalance
+	require.Equal(t, false, isFullyWithdrawableValidator(v, bal, 3))
 	// Wrong withdrawable epoch
 	creds = []byte{params.BeaconConfig().ETH1AddressWithdrawalPrefixByte, 0xCC}
 	v = &ethpb.Validator{
 		WithdrawalCredentials: creds,
 		WithdrawableEpoch:     2,
 	}
-	require.Equal(t, false, isFullyWithdrawableValidator(v, 1))
+	require.Equal(t, false, isFullyWithdrawableValidator(v, bal, 1))
+	// No balance
+	creds = []byte{params.BeaconConfig().ETH1AddressWithdrawalPrefixByte, 0xCC}
+	v = &ethpb.Validator{
+		WithdrawalCredentials: creds,
+		WithdrawableEpoch:     2,
+	}
+	require.Equal(t, false, isFullyWithdrawableValidator(v, 0, 3))
 	// Fully withdrawable
 	creds = []byte{params.BeaconConfig().ETH1AddressWithdrawalPrefixByte, 0xCC}
 	v = &ethpb.Validator{
 		WithdrawalCredentials: creds,
 		WithdrawableEpoch:     2,
 	}
-	require.Equal(t, true, isFullyWithdrawableValidator(v, 3))
+	require.Equal(t, true, isFullyWithdrawableValidator(v, bal, 3))
 }
 
 func TestExpectedWithdrawals(t *testing.T) {

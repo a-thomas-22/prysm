@@ -19,7 +19,10 @@ import (
 //	    )
 //	    return churn - churn % EFFECTIVE_BALANCE_INCREMENT
 func ChurnLimit(activeBalanceGwei uint64) uint64 {
-	churn := max((activeBalanceGwei / params.BeaconConfig().ChurnLimitQuotient), params.BeaconConfig().MinPerEpochChurnLimitEIP7251)
+	churn := max(
+		params.BeaconConfig().MinPerEpochChurnLimitEIP7251,
+		(activeBalanceGwei / params.BeaconConfig().ChurnLimitQuotient),
+	)
 	return churn - churn%params.BeaconConfig().EffectiveBalanceIncrement
 }
 
@@ -34,7 +37,7 @@ func ChurnLimit(activeBalanceGwei uint64) uint64 {
 //	    """
 //	    return min(MAX_PER_EPOCH_ACTIVATION_EXIT_CHURN_LIMIT, get_churn_limit(state))
 func ActivationExitChurnLimit(activeBalanceGwei uint64) uint64 {
-	return min(ChurnLimit(activeBalanceGwei), params.BeaconConfig().MaxPerEpochActivationExitChurnLimit)
+	return min(params.BeaconConfig().MaxPerEpochActivationExitChurnLimit, ChurnLimit(activeBalanceGwei))
 }
 
 // ConsolidationChurnLimit for the current active balance, in gwei.

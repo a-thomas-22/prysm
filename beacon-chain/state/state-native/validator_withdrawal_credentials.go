@@ -25,7 +25,7 @@ func HasCompoundingWithdrawalCredential(v *ethpb.Validator) bool {
 	return isCompoundingWithdrawalCredential(v.WithdrawalCredentials)
 }
 
-// HasHasCompoundingWithdrawalCredentialUsingTrie checks if the validator has a compounding withdrawal credential.
+// HasCompoundingWithdrawalCredentialUsingTrie checks if the validator has a compounding withdrawal credential.
 // New in EIP-7251: https://eips.ethereum.org/EIPS/eip-7251
 //
 // Spec definition:
@@ -35,13 +35,19 @@ func HasCompoundingWithdrawalCredential(v *ethpb.Validator) bool {
 //	    Check if ``validator`` has an 0x02 prefixed "compounding" withdrawal credential.
 //	    """
 //	    return validator.withdrawal_credentials[:1] == COMPOUNDING_WITHDRAWAL_PREFIX
-func HasHasCompoundingWithdrawalCredentialUsingTrie(v state.ReadOnlyValidator) bool {
+func HasCompoundingWithdrawalCredentialUsingTrie(v state.ReadOnlyValidator) bool {
 	if v == nil {
 		return false
 	}
 	return isCompoundingWithdrawalCredential(v.WithdrawalCredentials())
 }
 
+// isCompoundingWithdrawalCredential checks if the credentials are a compounding withdrawal credential.
+//
+// Spec definition:
+//
+//	def is_compounding_withdrawal_credential(withdrawal_credentials: Bytes32) -> bool:
+//	    return withdrawal_credentials[:1] == COMPOUNDING_WITHDRAWAL_PREFIX
 func isCompoundingWithdrawalCredential(creds []byte) bool {
 	return bytes.HasPrefix(creds, []byte{params.BeaconConfig().CompoundingWithdrawalPrefix})
 }
@@ -60,7 +66,7 @@ func HasExecutionWithdrawalCredentials(v *ethpb.Validator) bool {
 	if v == nil {
 		return false
 	}
-	return isExecutionWithdrawalCredential(v.WithdrawalCredentials)
+	return HasCompoundingWithdrawalCredential(v) || hasETH1WithdrawalCredential(v)
 }
 
 // HasExecutionWithdrawalCredentialsUsingTrie checks if the validator has an execution withdrawal credential or compounding credential.
@@ -77,10 +83,5 @@ func HasExecutionWithdrawalCredentialsUsingTrie(v state.ReadOnlyValidator) bool 
 	if v == nil {
 		return false
 	}
-	return isExecutionWithdrawalCredential(v.WithdrawalCredentials())
-}
-
-func isExecutionWithdrawalCredential(creds []byte) bool {
-	// Check if ``validator`` has a 0x01 or 0x02 prefixed withdrawal credential.
-	return bytes.HasPrefix(creds, []byte{params.BeaconConfig().ETH1AddressWithdrawalPrefixByte}) || isCompoundingWithdrawalCredential(creds)
+	return HasCompoundingWithdrawalCredentialUsingTrie(v) || hasETH1WithdrawalCredentialUsingTrie(v)
 }

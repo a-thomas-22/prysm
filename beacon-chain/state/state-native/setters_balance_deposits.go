@@ -11,7 +11,7 @@ func (b *BeaconState) AppendPendingBalanceDeposit(index primitives.ValidatorInde
 		panic("not implemented")
 	} else {
 		b.lock.Lock()
-		b.pendingBalanceDeposits = append(b.pendingBalanceDeposits, &ethpb.PendingBalanceDeposit{Index: uint64(index), Amount: amount})
+		b.pendingBalanceDeposits = append(b.pendingBalanceDeposits, &ethpb.PendingBalanceDeposit{Index: index, Amount: amount})
 		b.lock.Unlock()
 	}
 

@@ -14,6 +14,7 @@ import (
 	"github.com/prysmaticlabs/prysm/v5/config/params"
 	"github.com/prysmaticlabs/prysm/v5/consensus-types/primitives"
 	ethpb "github.com/prysmaticlabs/prysm/v5/proto/prysm/v1alpha1"
+	"github.com/prysmaticlabs/prysm/v5/runtime/version"
 	"github.com/prysmaticlabs/prysm/v5/time/slots"
 )
 
@@ -46,21 +47,28 @@ func MaxExitEpochAndChurn(s state.BeaconState) (maxExitEpoch primitives.Epoch, c
 //
 // Spec pseudocode definition:
 //
-//	def initiate_validator_exit(state: BeaconState, index: ValidatorIndex) -> None:
-//	    """
-//	    Initiate the exit of the validator with index ``index``.
-//	    """
-//	    # Return if validator already initiated exit
-//	    validator = state.validators[index]
-//	    if validator.exit_epoch != FAR_FUTURE_EPOCH:
-//	        return
+//			def initiate_validator_exit(state: BeaconState, index: ValidatorIndex) -> None:
+//			    """
+//			    Initiate the exit of the validator with index ``index``.
+//			    """
+//			    # Return if validator already initiated exit
+//			    validator = state.validators[index]
+//			    if validator.exit_epoch != FAR_FUTURE_EPOCH:
+//			        return
 //
-//	    # Compute exit queue epoch [Modified in EIP 7251]
-//	    exit_queue_epoch = compute_exit_epoch_and_update_churn(state, validator.effective_balance)
+//			    # Compute exit queue epoch [Modified in EIP 7251]
+//			    exit_queue_epoch = compute_exit_epoch_and_update_churn(state, validator.effective_balance)
 //
-//	    # Set validator exit epoch and withdrawable epoch
-//	    validator.exit_epoch = exit_queue_epoch
-//	    validator.withdrawable_epoch = Epoch(validator.exit_epoch + MIN_VALIDATOR_WITHDRAWABILITY_DELAY)
+//	            # Pre-EIP 7251 logic for computing exit queue epoch.
+//		        # exit_epochs = [v.exit_epoch for v in state.validators if v.exit_epoch != FAR_FUTURE_EPOCH]
+//		        # exit_queue_epoch = max(exit_epochs + [compute_activation_exit_epoch(get_current_epoch(state))])
+//		        # exit_queue_churn = len([v for v in state.validators if v.exit_epoch == exit_queue_epoch])
+//		        # if exit_queue_churn >= get_validator_churn_limit(state):
+//		        #    exit_queue_epoch += Epoch(1)
+//
+//			    # Set validator exit epoch and withdrawable epoch
+//			    validator.exit_epoch = exit_queue_epoch
+//			    validator.withdrawable_epoch = Epoch(validator.exit_epoch + MIN_VALIDATOR_WITHDRAWABILITY_DELAY)
 func InitiateValidatorExit(ctx context.Context, s state.BeaconState, idx primitives.ValidatorIndex, exitQueueEpoch primitives.Epoch, churn uint64) (state.BeaconState, primitives.Epoch, error) {
 	exitableEpoch := helpers.ActivationExitEpoch(time.CurrentEpoch(s))
 	if exitableEpoch > exitQueueEpoch {
@@ -74,17 +82,23 @@ func InitiateValidatorExit(ctx context.Context, s state.BeaconState, idx primiti
 	if validator.ExitEpoch != params.BeaconConfig().FarFutureEpoch {
 		return s, validator.ExitEpoch, ErrValidatorAlreadyExited
 	}
-	activeValidatorCount, err := helpers.ActiveValidatorCount(ctx, s, time.CurrentEpoch(s))
-	if err != nil {
-		return nil, 0, errors.Wrap(err, "could not get active validator count")
-	}
-	currentChurn := helpers.ValidatorExitChurnLimit(activeValidatorCount)
 
-	if churn >= currentChurn {
-		exitQueueEpoch, err = exitQueueEpoch.SafeAdd(1)
+	if s.Version() < version.EIP7251 {
+		activeValidatorCount, err := helpers.ActiveValidatorCount(ctx, s, time.CurrentEpoch(s))
 		if err != nil {
-			return nil, 0, err
+			return nil, 0, errors.Wrap(err, "could not get active validator count")
 		}
+		currentChurn := helpers.ValidatorExitChurnLimit(activeValidatorCount)
+
+		if churn >= currentChurn {
+			exitQueueEpoch, err = exitQueueEpoch.SafeAdd(1)
+			if err != nil {
+				return nil, 0, err
+			}
+		}
+	} else {
+		// exit_queue_epoch = compute_exit_epoch_and_update_churn(state, validator.effective_balance)
+		panic("not implemented") // TODO:
 	}
 	validator.ExitEpoch = exitQueueEpoch
 	validator.WithdrawableEpoch, err = exitQueueEpoch.SafeAddEpoch(params.BeaconConfig().MinValidatorWithdrawabilityDelay)

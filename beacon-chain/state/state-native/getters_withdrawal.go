@@ -1,9 +1,12 @@
 package state_native
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/pkg/errors"
+	"github.com/prysmaticlabs/prysm/v5/beacon-chain/core/helpers"
+	"github.com/prysmaticlabs/prysm/v5/beacon-chain/state"
 	"github.com/prysmaticlabs/prysm/v5/config/params"
 	"github.com/prysmaticlabs/prysm/v5/consensus-types/primitives"
 	"github.com/prysmaticlabs/prysm/v5/encoding/bytesutil"
@@ -125,7 +128,7 @@ func (b *BeaconState) ExpectedWithdrawals() ([]*enginev1.Withdrawal, error) {
 			if v.ExitEpoch == params.BeaconConfig().FarFutureEpoch && b.balances[w.Index] > params.BeaconConfig().MinActivationBalance {
 				amount := min(b.balances[w.Index]-params.BeaconConfig().MinActivationBalance, w.Amount)
 				withdrawals = append(withdrawals, &enginev1.Withdrawal{
-					Index:          w.Index,
+					Index:          withdrawalIndex,
 					ValidatorIndex: primitives.ValidatorIndex(w.Index),
 					Address:        v.WithdrawalCredentials[12:],
 					Amount:         amount,
@@ -147,7 +150,7 @@ func (b *BeaconState) ExpectedWithdrawals() ([]*enginev1.Withdrawal, error) {
 		if err != nil {
 			return nil, errors.Wrapf(err, "could not retrieve balance at index %d", validatorIndex)
 		}
-		if balance > 0 && isFullyWithdrawableValidator(val, epoch) {
+		if isFullyWithdrawableValidator(val, balance, epoch) {
 			withdrawals = append(withdrawals, &enginev1.Withdrawal{
 				Index:          withdrawalIndex,
 				ValidatorIndex: validatorIndex,
@@ -155,7 +158,7 @@ func (b *BeaconState) ExpectedWithdrawals() ([]*enginev1.Withdrawal, error) {
 				Amount:         balance,
 			})
 			withdrawalIndex++
-		} else if isPartiallyWithdrawableValidator(val, balance) {
+		} else if isPartiallyWithdrawableValidator(val, balance, epoch) {
 			withdrawals = append(withdrawals, &enginev1.Withdrawal{
 				Index:          withdrawalIndex,
 				ValidatorIndex: validatorIndex,
@@ -183,13 +186,24 @@ func hasETH1WithdrawalCredential(val *ethpb.Validator) bool {
 	if val == nil {
 		return false
 	}
-	cred := val.WithdrawalCredentials
-	return len(cred) > 0 && cred[0] == params.BeaconConfig().ETH1AddressWithdrawalPrefixByte
+	return isETH1WithdrawalCredential(val.WithdrawalCredentials)
+}
+
+// hasETH1WithdrawalCredential returns whether the validator has an ETH1
+// Withdrawal prefix. It assumes that the caller has a lock on the state
+func hasETH1WithdrawalCredentialUsingTrie(val state.ReadOnlyValidator) bool {
+	if val == nil {
+		return false
+	}
+	return isETH1WithdrawalCredential(val.WithdrawalCredentials())
+}
+
+func isETH1WithdrawalCredential(creds []byte) bool {
+	return bytes.HasPrefix(creds, []byte{params.BeaconConfig().ETH1AddressWithdrawalPrefixByte})
 }
 
 // isFullyWithdrawableValidator returns whether the validator is able to perform a full
-// withdrawal. This differ from the spec helper in that the balance > 0 is not
-// checked. This function assumes that the caller holds a lock on the state.
+// withdrawal. This function assumes that the caller holds a lock on the state.
 //
 // Spec definition:
 //
@@ -202,15 +216,14 @@ func hasETH1WithdrawalCredential(val *ethpb.Validator) bool {
 //	        and validator.withdrawable_epoch <= epoch
 //	        and balance > 0
 //	    )
-func isFullyWithdrawableValidator(val *ethpb.Validator, epoch primitives.Epoch) bool {
-	if val == nil {
+func isFullyWithdrawableValidator(val *ethpb.Validator, balance uint64, epoch primitives.Epoch) bool {
+	if val == nil || balance <= 0 {
 		return false
 	}
 
 	// EIP-7251 logic
 	if epoch >= params.BeaconConfig().EIP7251ForkEpoch {
-		return HasExecutionWithdrawalCredentials(val) &&
-			val.WithdrawableEpoch <= epoch
+		return HasExecutionWithdrawalCredentials(val) && val.WithdrawableEpoch <= epoch
 	}
 
 	return hasETH1WithdrawalCredential(val) && val.WithdrawableEpoch <= epoch
@@ -225,19 +238,27 @@ func isFullyWithdrawableValidator(val *ethpb.Validator, epoch primitives.Epoch) 
 //	    """
 //	    Check if ``validator`` is partially withdrawable.
 //	    """
+//	    max_effective_balance = get_validator_max_effective_balance(validator)
+//	    has_max_effective_balance = validator.effective_balance == max_effective_balance  # [Modified in EIP7251]
+//	    has_excess_balance = balance > max_effective_balance  # [Modified in EIP7251]
 //	    return (
-//	        has_execution_withdrawal_credential(validator) # [Modified in EIP7251]
-//	        and get_validator_excess_balance(validator, balance) > 0
+//	        has_execution_withdrawal_credential(validator)  # [Modified in EIP7251]
+//	        and has_max_effective_balance
+//	        and has_excess_balance
 //	    )
-func isPartiallyWithdrawableValidator(val *ethpb.Validator, balance uint64) bool {
+func isPartiallyWithdrawableValidator(val *ethpb.Validator, balance uint64, epoch primitives.Epoch) bool {
 	if val == nil {
 		return false
 	}
 
-	var epoch primitives.Epoch // TODO: Fork aware method.
 	if epoch >= params.BeaconConfig().EIP7251ForkEpoch {
-		// TODO: HasExecutionWithdrawalCredentials is already checked in validator excess balance?
-		return HasExecutionWithdrawalCredentials(val) && validatorExcessBalance(val, balance) > 0
+		maxEB := validatorMaxEffectiveBalance(val)
+		hasMaxBalance := val.EffectiveBalance == maxEB
+		hasExcessBalance := balance > maxEB
+
+		return HasExecutionWithdrawalCredentials(val) &&
+			hasMaxBalance &&
+			hasExcessBalance
 	}
 
 	hasMaxBalance := val.EffectiveBalance == params.BeaconConfig().MaxEffectiveBalance
@@ -245,28 +266,84 @@ func isPartiallyWithdrawableValidator(val *ethpb.Validator, balance uint64) bool
 	return hasETH1WithdrawalCredential(val) && hasExcessBalance && hasMaxBalance
 }
 
-// validatorExcessBalance returns the gwei amount considered as "excess".
+// validatorMaxEffectiveBalance returns the maximum effective balance for a validator.
 //
 // Spec definition:
 //
-//	def get_validator_excess_balance(validator: Validator, balance: Gwei) -> Gwei:
+//	def get_validator_max_effective_balance(validator: Validator) -> Gwei:
 //	    """
-//	    Get excess balance for partial withdrawals for ``validator``.
+//	    Get max effective balance for ``validator``.
 //	    """
-//	    if has_compounding_withdrawal_credential(validator) and balance > MAX_EFFECTIVE_BALANCE_EIP7251:
-//	        return balance - MAX_EFFECTIVE_BALANCE_EIP7251
-//	    elif has_eth1_withdrawal_credential(validator) and balance > MIN_ACTIVATION_BALANCE:
-//	        return balance - MIN_ACTIVATION_BALANCE
-//	    return Gwei(0)
-func validatorExcessBalance(val *ethpb.Validator, balance uint64) uint64 {
-	if HasCompoundingWithdrawalCredential(val) && balance > params.BeaconConfig().MaxEffectiveBalanceEIP7251 {
-		return balance - params.BeaconConfig().MaxEffectiveBalanceEIP7251
-	} else if hasETH1WithdrawalCredential(val) && balance > params.BeaconConfig().MinActivationBalance {
-		return balance - params.BeaconConfig().MinActivationBalance
+//	    if has_compounding_withdrawal_credential(validator):
+//	        return MAX_EFFECTIVE_BALANCE_EIP7251
+//	    else:
+//	        return MIN_ACTIVATION_BALANCE
+func validatorMaxEffectiveBalance(val *ethpb.Validator) uint64 {
+	if HasCompoundingWithdrawalCredential(val) {
+		return params.BeaconConfig().MaxEffectiveBalanceEIP7251
 	}
-	return 0
+	return params.BeaconConfig().MinActivationBalance
 }
 
 func (b *BeaconState) pendingPartialWithdrawalsVal() []*ethpb.PartialWithdrawal {
 	return ethpb.CopyPendingPartialWithdrawals(b.pendingPartialWithdrawals)
+}
+
+// TODO: This goes in exits file?
+// ExitEpochAndUpdateChurn
+//
+// Spec definition:
+//
+//	def compute_exit_epoch_and_update_churn(state: BeaconState, exit_balance: Gwei) -> Epoch:
+//	    earliest_exit_epoch = compute_activation_exit_epoch(get_current_epoch(state))
+//	    per_epoch_churn = get_activation_exit_churn_limit(state)
+//	    # New epoch for exits.
+//	    if state.earliest_exit_epoch < earliest_exit_epoch:
+//	        state.earliest_exit_epoch = earliest_exit_epoch
+//	        state.exit_balance_to_consume = per_epoch_churn
+//
+//	    if exit_balance <= state.exit_balance_to_consume:
+//	        # Exit fits in the current earliest epoch.
+//	        state.exit_balance_to_consume -= exit_balance
+//	    else:
+//	        # Exit doesn't fit in the current earliest epoch.
+//	        balance_to_process = exit_balance - state.exit_balance_to_consume
+//	        additional_epochs, remainder = divmod(balance_to_process, per_epoch_churn)
+//	        state.earliest_exit_epoch += additional_epochs + 1
+//	        state.exit_balance_to_consume = per_epoch_churn - remainder
+//
+// return state.earliest_exit_epoch
+func (b *BeaconState) ExitEpochAndUpdateChurn(exitBalance uint64) (primitives.Epoch, error) {
+	if b.version < version.EIP7251 {
+		return 0, errNotSupported("ExitEpochAndUpdateChurn", b.version)
+	}
+
+	b.lock.Lock()
+	defer b.lock.Unlock()
+
+	earliestExitEpoch := helpers.ActivationExitEpoch(slots.ToEpoch(b.slot))
+	activeBal, err := helpers.TotalActiveBalance(b)
+	if err != nil {
+		return 0, err
+	}
+	// Guaranteed to be non-zero.
+	perEpochChurn := helpers.ActivationExitChurnLimit(helpers.ActivationExitChurnLimit(activeBal))
+
+	// New epoch for exits
+	if b.earliestExitEpoch < earliestExitEpoch {
+		b.earliestExitEpoch = earliestExitEpoch
+		b.exitBalanceToConsume = perEpochChurn
+	}
+
+	if exitBalance <= b.exitBalanceToConsume {
+		b.exitBalanceToConsume -= exitBalance
+	} else {
+		// exit doesn't fit in the current earliest epoch
+		balanceToProcess := exitBalance - b.exitBalanceToConsume
+		additionalEpochs, remainder := balanceToProcess/perEpochChurn, balanceToProcess%perEpochChurn
+		b.earliestExitEpoch += primitives.Epoch(additionalEpochs + 1)
+		b.exitBalanceToConsume = perEpochChurn - remainder
+	}
+
+	return b.earliestExitEpoch, nil
 }
