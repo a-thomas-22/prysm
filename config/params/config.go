@@ -244,6 +244,7 @@ type BeaconChainConfig struct {
 	MaxPerEpochActivationExitChurnLimit uint64 `yaml:"MAX_PER_EPOCH_ACTIVATION_EXIT_CHURN_LIMIT"`
 	MaxEffectiveBalanceEIP7251          uint64 `yaml:"MAX_EFFECTIVE_BALANCE_EIP7251"`
 	MinSlashingPenaltyQuotientEIP7251   uint64 `yaml:"MIN_SLASHING_PENALTY_QUOTIENT_EIP7251"`
+	WhistleBlowerRewardQuotientEIP7251  uint64 `yaml:"WHISTLEBLOWER_REWARD_QUOTIENT_EIP7251"`
 
 	// Networking Specific Parameters
 	GossipMaxSize                   uint64          `yaml:"GOSSIP_MAX_SIZE" spec:"true"`                    // GossipMaxSize is the maximum allowed size of uncompressed gossip messages.

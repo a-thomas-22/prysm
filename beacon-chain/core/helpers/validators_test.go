@@ -828,3 +828,15 @@ func TestProposerIndexFromCheckpoint(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, ids[5], id)
 }
+
+func TestHasETH1WithdrawalCredentials(t *testing.T) {
+	creds := []byte{0xFA, 0xCC}
+	v := &ethpb.Validator{WithdrawalCredentials: creds}
+	require.Equal(t, false, helpers.HasETH1WithdrawalCredential(v))
+	creds = []byte{params.BeaconConfig().ETH1AddressWithdrawalPrefixByte, 0xCC}
+	v = &ethpb.Validator{WithdrawalCredentials: creds}
+	require.Equal(t, true, helpers.HasETH1WithdrawalCredential(v))
+	// No Withdrawal cred
+	v = &ethpb.Validator{}
+	require.Equal(t, false, helpers.HasETH1WithdrawalCredential(v))
+}

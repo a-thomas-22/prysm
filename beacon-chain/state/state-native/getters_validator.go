@@ -2,6 +2,7 @@ package state_native
 
 import (
 	"github.com/pkg/errors"
+	"github.com/prysmaticlabs/prysm/v5/beacon-chain/core/helpers"
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/state"
 	"github.com/prysmaticlabs/prysm/v5/config/features"
 	fieldparams "github.com/prysmaticlabs/prysm/v5/config/fieldparams"
@@ -434,7 +435,7 @@ func (b *BeaconState) ActiveBalanceAtIndex(i primitives.ValidatorIndex) (uint64,
 	}
 	v := b.validators[i]
 	var ceiling uint64
-	if hasETH1WithdrawalCredential(v) {
+	if helpers.HasETH1WithdrawalCredential(v) {
 		ceiling = params.BeaconConfig().MinActivationBalance
 	} else {
 		ceiling = params.BeaconConfig().MaxEffectiveBalanceEIP7251

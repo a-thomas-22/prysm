@@ -128,14 +128,16 @@ func InitiateValidatorExit(ctx context.Context, s state.BeaconState, idx primiti
 //	  validator.slashed = True
 //	  validator.withdrawable_epoch = max(validator.withdrawable_epoch, Epoch(epoch + EPOCHS_PER_SLASHINGS_VECTOR))
 //	  state.slashings[epoch % EPOCHS_PER_SLASHINGS_VECTOR] += validator.effective_balance
-//	  decrease_balance(state, slashed_index, validator.effective_balance // MIN_SLASHING_PENALTY_QUOTIENT)
+//	  slashing_penalty = validator.effective_balance // MIN_SLASHING_PENALTY_QUOTIENT_EIP7251  # [Modified in EIP7251]
+//	  decrease_balance(state, slashed_index, slashing_penalty)
 //
 //	  # Apply proposer and whistleblower rewards
 //	  proposer_index = get_beacon_proposer_index(state)
 //	  if whistleblower_index is None:
 //	      whistleblower_index = proposer_index
-//	  whistleblower_reward = Gwei(validator.effective_balance // WHISTLEBLOWER_REWARD_QUOTIENT)
-//	  proposer_reward = Gwei(whistleblower_reward // PROPOSER_REWARD_QUOTIENT)
+//	  whistleblower_reward = Gwei(
+//	       validator.effective_balance // WHISTLEBLOWER_REWARD_QUOTIENT_EIP7251)  # [Modified in EIP7251]
+//	  proposer_reward = Gwei(whistleblower_reward * PROPOSER_WEIGHT // WEIGHT_DENOMINATOR)
 //	  increase_balance(state, proposer_index, proposer_reward)
 //	  increase_balance(state, whistleblower_index, Gwei(whistleblower_reward - proposer_reward))
 func SlashValidator(
@@ -171,7 +173,11 @@ func SlashValidator(
 	); err != nil {
 		return nil, err
 	}
-	if err := helpers.DecreaseBalance(s, slashedIdx, validator.EffectiveBalance/penaltyQuotient); err != nil {
+	slashingPenalty := validator.EffectiveBalance / penaltyQuotient
+	if s.Version() >= version.EIP7251 {
+		slashingPenalty = validator.EffectiveBalance / params.BeaconConfig().MinSlashingPenaltyQuotientEIP7251
+	}
+	if err := helpers.DecreaseBalance(s, slashedIdx, slashingPenalty); err != nil {
 		return nil, err
 	}
 
@@ -182,12 +188,14 @@ func SlashValidator(
 	whistleBlowerIdx := proposerIdx
 	whistleblowerReward := validator.EffectiveBalance / params.BeaconConfig().WhistleBlowerRewardQuotient
 	proposerReward := whistleblowerReward / proposerRewardQuotient
-	err = helpers.IncreaseBalance(s, proposerIdx, proposerReward)
-	if err != nil {
+	if s.Version() >= version.EIP7251 {
+		whistleblowerReward = validator.EffectiveBalance / params.BeaconConfig().WhistleBlowerRewardQuotientEIP7251
+		proposerReward = whistleblowerReward * params.BeaconConfig().ProposerWeight / params.BeaconConfig().WeightDenominator
+	}
+	if err := helpers.IncreaseBalance(s, proposerIdx, proposerReward); err != nil {
 		return nil, err
 	}
-	err = helpers.IncreaseBalance(s, whistleBlowerIdx, whistleblowerReward-proposerReward)
-	if err != nil {
+	if err := helpers.IncreaseBalance(s, whistleBlowerIdx, whistleblowerReward-proposerReward); err != nil {
 		return nil, err
 	}
 	return s, nil

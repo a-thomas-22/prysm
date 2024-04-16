@@ -56,6 +56,7 @@ type ReadOnlyBeaconState interface {
 	ReadOnlyParticipation
 	ReadOnlyInactivity
 	ReadOnlySyncCommittee
+	ReadOnlyEIP7251
 	ToProtoUnsafe() interface{}
 	ToProto() interface{}
 	GenesisTime() uint64
@@ -88,6 +89,7 @@ type WriteOnlyBeaconState interface {
 	WriteOnlyInactivity
 	WriteOnlySyncCommittee
 	WriteOnlyPendingBalanceDeposits
+	WriteOnlyEIP7241
 	SetGenesisTime(val uint64) error
 	SetGenesisValidatorsRoot(val []byte) error
 	SetSlot(val primitives.Slot) error
@@ -204,6 +206,14 @@ type ReadOnlySyncCommittee interface {
 	NextSyncCommittee() (*ethpb.SyncCommittee, error)
 }
 
+type ReadOnlyEIP7251 interface {
+	ConsolidationBalanceToConsume() (uint64, error)
+	DepositBalanceToConsume() (uint64, error)
+	EarliestConsolidationEpoch() (primitives.Epoch, error)
+	PendingBalanceDeposits() ([]*ethpb.PendingBalanceDeposit, error)
+	PendingConsolidations() ([]*ethpb.PendingConsolidation, error)
+}
+
 // WriteOnlyBlockRoots defines a struct which only has write access to block roots methods.
 type WriteOnlyBlockRoots interface {
 	SetBlockRoots(val [][]byte) error
@@ -289,4 +299,9 @@ type WriteOnlyPendingBalanceDeposits interface {
 }
 
 type WriteOnlyEIP7241 interface {
+	SetConsolidationBalanceToConsume(gwei uint64) error
+	SetEarliestConsolidationEpoch(epoch primitives.Epoch) error
+	SetPendingBalanceDeposits(val []*ethpb.PendingBalanceDeposit) error
+	SetDepositBalanceToConsume(gwei uint64) error
+	SetPendingConsolidations(val []*ethpb.PendingConsolidation) error
 }

@@ -2,14 +2,22 @@ load("@prysm//tools/go:def.bzl", "go_library")
 
 go_library(
     name = "go_default_library",
-    srcs = ["transition.go"],
+    srcs = [
+        "churn.go",
+        "transition.go",
+        "validator.go",
+    ],
     importpath = "github.com/prysmaticlabs/prysm/v5/beacon-chain/core/eip7251",
     visibility = ["//visibility:public"],
     deps = [
         "//beacon-chain/core/altair:go_default_library",
         "//beacon-chain/core/epoch:go_default_library",
         "//beacon-chain/core/epoch/precompute:go_default_library",
+        "//beacon-chain/core/helpers:go_default_library",
         "//beacon-chain/state:go_default_library",
+        "//config/params:go_default_library",
+        "//consensus-types/primitives:go_default_library",
+        "//time/slots:go_default_library",
         "@com_github_pkg_errors//:go_default_library",
         "@io_opencensus_go//trace:go_default_library",
     ],

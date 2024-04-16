@@ -494,3 +494,16 @@ func LastActivatedValidatorIndex(ctx context.Context, st state.ReadOnlyBeaconSta
 	}
 	return lastActivatedvalidatorIndex, nil
 }
+
+// hasETH1WithdrawalCredential returns whether the validator has an ETH1
+// Withdrawal prefix. It assumes that the caller has a lock on the state
+func HasETH1WithdrawalCredential(val *ethpb.Validator) bool {
+	if val == nil {
+		return false
+	}
+	return isETH1WithdrawalCredential(val.WithdrawalCredentials)
+}
+
+func isETH1WithdrawalCredential(creds []byte) bool {
+	return bytes.HasPrefix(creds, []byte{params.BeaconConfig().ETH1AddressWithdrawalPrefixByte})
+}

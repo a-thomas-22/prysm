@@ -52,18 +52,6 @@ func TestNextWithdrawalValidatorIndex(t *testing.T) {
 	})
 }
 
-func TestHasETH1WithdrawalCredentials(t *testing.T) {
-	creds := []byte{0xFA, 0xCC}
-	v := &ethpb.Validator{WithdrawalCredentials: creds}
-	require.Equal(t, false, hasETH1WithdrawalCredential(v))
-	creds = []byte{params.BeaconConfig().ETH1AddressWithdrawalPrefixByte, 0xCC}
-	v = &ethpb.Validator{WithdrawalCredentials: creds}
-	require.Equal(t, true, hasETH1WithdrawalCredential(v))
-	// No Withdrawal cred
-	v = &ethpb.Validator{}
-	require.Equal(t, false, hasETH1WithdrawalCredential(v))
-}
-
 func TestIsFullyWithdrawableValidator(t *testing.T) {
 	// No ETH1 prefix
 	creds := []byte{0xFA, 0xCC}

@@ -12,6 +12,7 @@ go_library(
         "getters_checkpoint.go",
         "getters_consolidation.go",
         "getters_deposits.go",
+        "getters_eip7251.go",
         "getters_eth1.go",
         "getters_misc.go",
         "getters_participation.go",
