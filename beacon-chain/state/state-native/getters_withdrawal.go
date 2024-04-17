@@ -257,7 +257,7 @@ func isPartiallyWithdrawableValidator(val *ethpb.Validator, balance uint64, epoc
 //	    else:
 //	        return MIN_ACTIVATION_BALANCE
 func validatorMaxEffectiveBalance(val *ethpb.Validator) uint64 {
-	if HasCompoundingWithdrawalCredential(val) {
+	if helpers.HasCompoundingWithdrawalCredential(val) {
 		return params.BeaconConfig().MaxEffectiveBalanceEIP7251
 	}
 	return params.BeaconConfig().MinActivationBalance

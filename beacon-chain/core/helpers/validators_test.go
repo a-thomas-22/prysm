@@ -840,3 +840,24 @@ func TestHasETH1WithdrawalCredentials(t *testing.T) {
 	v = &ethpb.Validator{}
 	require.Equal(t, false, helpers.HasETH1WithdrawalCredential(v))
 }
+
+func TestHasCompoundingWithdrawalCredential(t *testing.T) {
+	tests := []struct {
+		name      string
+		validator *ethpb.Validator
+		want      bool
+	}{
+		{"Has compounding withdrawal credential",
+			&ethpb.Validator{WithdrawalCredentials: bytesutil.PadTo([]byte{params.BeaconConfig().CompoundingWithdrawalPrefix}, 32)},
+			true},
+		{"Does not have compounding withdrawal credential",
+			&ethpb.Validator{WithdrawalCredentials: bytesutil.PadTo([]byte{0x00}, 32)},
+			false},
+		{"Handles nil case", nil, false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, helpers.HasCompoundingWithdrawalCredential(tt.validator))
+		})
+	}
+}
