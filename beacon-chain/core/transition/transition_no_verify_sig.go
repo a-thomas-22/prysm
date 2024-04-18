@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/core/altair"
 	b "github.com/prysmaticlabs/prysm/v5/beacon-chain/core/blocks"
+	"github.com/prysmaticlabs/prysm/v5/beacon-chain/core/eip7251"
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/core/transition/interop"
 	v "github.com/prysmaticlabs/prysm/v5/beacon-chain/core/validators"
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/state"
@@ -234,8 +235,11 @@ func ProcessBlockNoVerifyAnySig(
 //	  for_ops(body.proposer_slashings, process_proposer_slashing)
 //	  for_ops(body.attester_slashings, process_attester_slashing)
 //	  for_ops(body.attestations, process_attestation)
-//	  for_ops(body.deposits, process_deposit)
-//	  for_ops(body.voluntary_exits, process_voluntary_exit)
+//	  for_ops(body.deposits, process_deposit)  # [Modified in EIP7251]
+//	  for_ops(body.voluntary_exits, process_voluntary_exit)  # [Modified in EIP7251]
+//	  for_ops(body.bls_to_execution_changes, process_bls_to_execution_change)
+//	  for_ops(body.execution_payload.withdraw_requests, process_execution_layer_withdraw_request)  # [New in EIP7251]
+//	  for_ops(body.consolidations, process_consolidation)  # [New in EIP7251]
 func ProcessOperationsNoVerifyAttsSigs(
 	ctx context.Context,
 	state state.BeaconState,
@@ -259,6 +263,11 @@ func ProcessOperationsNoVerifyAttsSigs(
 		}
 	case version.Altair, version.Bellatrix, version.Capella, version.Deneb:
 		state, err = altairOperations(ctx, state, beaconBlock)
+		if err != nil {
+			return nil, err
+		}
+	case version.EIP7251:
+		state, err = eip7251Operations(ctx, state, beaconBlock)
 		if err != nil {
 			return nil, err
 		}
@@ -378,16 +387,45 @@ func VerifyBlobCommitmentCount(blk interfaces.ReadOnlyBeaconBlock) error {
 	return nil
 }
 
+// eip7251Operations --
+//
+// Spec definition:
+//
+//	def process_operations(state: BeaconState, body: ReadOnlyBeaconBlockBody) -> None:
+//	  # Verify that outstanding deposits are processed up to the maximum number of deposits
+//	  assert len(body.deposits) == min(MAX_DEPOSITS, state.eth1_data.deposit_count - state.eth1_deposit_index)
+//
+//	  def for_ops(operations: Sequence[Any], fn: Callable[[BeaconState, Any], None]) -> None:
+//	      for operation in operations:
+//	          fn(state, operation)
+//
+//	  for_ops(body.proposer_slashings, process_proposer_slashing)
+//	  for_ops(body.attester_slashings, process_attester_slashing)
+//	  for_ops(body.attestations, process_attestation)
+//	  for_ops(body.deposits, process_deposit)  # [Modified in EIP7251]
+//	  for_ops(body.voluntary_exits, process_voluntary_exit)  # [Modified in EIP7251]
+//	  for_ops(body.bls_to_execution_changes, process_bls_to_execution_change)
+//	  for_ops(body.execution_payload.withdraw_requests, process_execution_layer_withdraw_request)  # [New in EIP7251]
+//	  for_ops(body.consolidations, process_consolidation)  # [New in EIP7251]
 func eip7251Operations(
 	ctx context.Context,
 	st state.BeaconState,
 	block interfaces.ReadOnlyBeaconBlock) (state.BeaconState, error) {
 
+	// EIP-7251 extends the altair operations.
 	st, err := altairOperations(ctx, st, block)
 	if err != nil {
 		return nil, err
 	}
 
+	cs, err := block.Body().Consolidations()
+	if err != nil {
+		return nil, errors.Wrap(err, "could not get consolidations")
+	}
+	st, err = eip7251.ProcessConsolidations(ctx, st, cs)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not process consolidations")
+	}
 
 	// TODO
 	return st, nil

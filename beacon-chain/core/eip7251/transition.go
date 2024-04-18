@@ -10,6 +10,8 @@ import (
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/core/epoch/precompute"
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/core/helpers"
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/state"
+	"github.com/prysmaticlabs/prysm/v5/config/params"
+	ethpb "github.com/prysmaticlabs/prysm/v5/proto/prysm/v1alpha1"
 	"github.com/prysmaticlabs/prysm/v5/time/slots"
 	"go.opencensus.io/trace"
 )
@@ -254,4 +256,113 @@ func ProcessPendingConsolidations(ctx context.Context, st state.BeaconState, act
 	}
 
 	return st, nil
+}
+
+// ProcessConsolidations --
+//
+// Spec definition:
+//
+//	def process_consolidation(state: BeaconState, signed_consolidation: SignedConsolidation) -> None:
+//	    # If the pending consolidations queue is full, no consolidations are allowed in the block
+//	    assert len(state.pending_consolidations) < PENDING_CONSOLIDATIONS_LIMIT
+//	    # If there is too little available consolidation churn limit, no consolidations are allowed in the block
+//	    assert get_consolidation_churn_limit(state) > MIN_ACTIVATION_BALANCE
+//	    consolidation = signed_consolidation.message
+//	    # Verify that source != target, so a consolidation cannot be used as an exit.
+//	    assert consolidation.source_index != consolidation.target_index
+//
+//	    source_validator = state.validators[consolidation.source_index]
+//	    target_validator = state.validators[consolidation.target_index]
+//	    # Verify the source and the target are active
+//	    current_epoch = get_current_epoch(state)
+//	    assert is_active_validator(source_validator, current_epoch)
+//	    assert is_active_validator(target_validator, current_epoch)
+//	    # Verify exits for source and target have not been initiated
+//	    assert source_validator.exit_epoch == FAR_FUTURE_EPOCH
+//	    assert target_validator.exit_epoch == FAR_FUTURE_EPOCH
+//	    # Consolidations must specify an epoch when they become valid; they are not valid before then
+//	    assert current_epoch >= consolidation.epoch
+//
+//	    # Verify the source and the target have Execution layer withdrawal credentials
+//	    assert has_execution_withdrawal_credential(source_validator)
+//	    assert has_execution_withdrawal_credential(target_validator)
+//	    # Verify the same withdrawal address
+//	    assert source_validator.withdrawal_credentials[12:] == target_validator.withdrawal_credentials[12:]
+//
+//	    # Verify consolidation is signed by the source and the target
+//	    domain = compute_domain(DOMAIN_CONSOLIDATION, genesis_validators_root=state.genesis_validators_root)
+//	    signing_root = compute_signing_root(consolidation, domain)
+//	    pubkeys = [source_validator.pubkey, target_validator.pubkey]
+//	    assert bls.FastAggregateVerify(pubkeys, signing_root, signed_consolidation.signature)
+//
+//	    # Initiate source validator exit and append pending consolidation
+//	    source_validator.exit_epoch = compute_consolidation_epoch_and_update_churn(
+//	        state, source_validator.effective_balance)
+//	    source_validator.withdrawable_epoch = Epoch(
+//	        source_validator.exit_epoch + MIN_VALIDATOR_WITHDRAWABILITY_DELAY
+//	    )
+//	    state.pending_consolidations.append(PendingConsolidation(
+//	        source_index=consolidation.source_index,
+//	        target_index=consolidation.target_index
+//	    ))
+func ProcessConsolidations(ctx context.Context, st state.BeaconState, cs []*ethpb.SignedConsolidation) (state.BeaconState, error) {
+	_, span := trace.StartSpan(ctx, "eip7251.ProcessConsolidations")
+	defer span.End()
+
+	if st == nil || st.IsNil() {
+		return nil, errors.New("nil state")
+	}
+	if cs == nil {
+		return nil, errors.New("nil consolidations")
+	}
+
+	for _, c := range cs {
+		if c == nil || c.Message == nil {
+			return nil, errors.New("nil consolidation")
+		}
+
+		// TODO: can these be moved outside of the loop?
+		if st.NumPendingConsolidations() >= params.BeaconConfig().PendingConsolidationsLimit {
+			return nil, errors.New("pending consolidations queue is full")
+		}
+
+		totalBalance, err := helpers.TotalActiveBalance(st)
+		if err != nil {
+			return nil, err
+		}
+		if helpers.ConsolidationChurnLimit(totalBalance) <= params.BeaconConfig().MinActivationBalance {
+			return nil, errors.New("too little available consolidation churn limit")
+		}
+		currentEpoch := slots.ToEpoch(st.Slot())
+		// END TODO
+
+		if c.Message.SourceIndex == c.Message.TargetIndex {
+			return nil, errors.New("source and target index are the same")
+		}
+		source, err := st.ValidatorAtIndex(c.Message.SourceIndex)
+		if err != nil {
+			return nil, err
+		}
+		target, err := st.ValidatorAtIndex(c.Message.TargetIndex)
+		if err != nil {
+			return nil, err
+		}
+		if !helpers.IsActiveValidator(source, currentEpoch) {
+			return nil, errors.New("source is not active")
+		}
+		if !helpers.IsActiveValidator(target, currentEpoch) {
+			return nil, errors.New("target is not active")
+		}
+		if source.ExitEpoch != params.BeaconConfig().FarFutureEpoch {
+			return nil, errors.New("source exit epoch has been initiated")
+		}
+		if target.ExitEpoch != params.BeaconConfig().FarFutureEpoch {
+			return nil, errors.New("target exit epoch has been initiated")
+		}
+		if currentEpoch < c.Message.Epoch {
+			return nil, errors.New("consolidation is not valid yet")
+		}
+	}
+
+	return nil, errors.New("not implemented")
 }

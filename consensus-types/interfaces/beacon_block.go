@@ -77,6 +77,7 @@ type ReadOnlyBeaconBlockBody interface {
 	Execution() (ExecutionData, error)
 	BLSToExecutionChanges() ([]*ethpb.SignedBLSToExecutionChange, error)
 	BlobKzgCommitments() ([][]byte, error)
+	Consolidations() ([]*ethpb.SignedConsolidation, error)
 }
 
 type SignedBeaconBlock interface {

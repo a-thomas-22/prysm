@@ -73,6 +73,12 @@ func (b *BeaconState) PendingConsolidations() ([]*ethpb.PendingConsolidation, er
 	return b.pendingConsolidations, nil
 }
 
+func (b *BeaconState) NumPendingConsolidations() uint64 {
+	b.lock.RLock() // TODO: Is this necessary?
+	defer b.lock.RUnlock()
+	return uint64(len(b.pendingConsolidations))
+}
+
 func (b *BeaconState) SetDepositBalanceToConsume(gwei uint64) error {
 	if b.version < version.EIP7251 {
 		return errNotSupported("SetDepositBalanceToConsume", b.version)

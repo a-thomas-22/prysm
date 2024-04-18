@@ -1086,6 +1086,13 @@ func (b *BeaconBlockBody) BlobKzgCommitments() ([][]byte, error) {
 	}
 }
 
+func (b *BeaconBlockBody) Consolidations() ([]*eth.SignedConsolidation, error) {
+	if b.version < version.EIP7251 {
+		return nil, consensus_types.ErrNotSupported("Consolidations", b.version)
+	}
+	return b.signedConsolidations, nil
+}
+
 // Version returns the version of the beacon block body
 func (b *BeaconBlockBody) Version() int {
 	return b.version

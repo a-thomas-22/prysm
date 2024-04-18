@@ -184,7 +184,7 @@ type ReadOnlyAttestations interface {
 
 // ReadOnlyWithdrawals defines a struct which only has read access to withdrawal methods.
 type ReadOnlyWithdrawals interface {
-	ExpectedWithdrawals() ([]*enginev1.Withdrawal, error)
+	ExpectedWithdrawals() ([]*enginev1.Withdrawal, uint64, error)
 	NextWithdrawalValidatorIndex() (primitives.ValidatorIndex, error)
 	NextWithdrawalIndex() (uint64, error)
 }
@@ -212,6 +212,7 @@ type ReadOnlyEIP7251 interface {
 	EarliestConsolidationEpoch() (primitives.Epoch, error)
 	PendingBalanceDeposits() ([]*ethpb.PendingBalanceDeposit, error)
 	PendingConsolidations() ([]*ethpb.PendingConsolidation, error)
+	NumPendingConsolidations() uint64
 }
 
 // WriteOnlyBlockRoots defines a struct which only has write access to block roots methods.
@@ -304,4 +305,5 @@ type WriteOnlyEIP7241 interface {
 	SetPendingBalanceDeposits(val []*ethpb.PendingBalanceDeposit) error
 	SetDepositBalanceToConsume(gwei uint64) error
 	SetPendingConsolidations(val []*ethpb.PendingConsolidation) error
+	DequeuePartialWithdrawals(idx uint64) error
 }
