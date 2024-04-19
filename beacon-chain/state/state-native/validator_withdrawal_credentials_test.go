@@ -3,7 +3,7 @@ package state_native_test
 import (
 	"testing"
 
-	state_native "github.com/prysmaticlabs/prysm/v5/beacon-chain/state/state-native"
+	"github.com/prysmaticlabs/prysm/v5/beacon-chain/core/helpers"
 	"github.com/prysmaticlabs/prysm/v5/config/params"
 	"github.com/prysmaticlabs/prysm/v5/encoding/bytesutil"
 	ethpb "github.com/prysmaticlabs/prysm/v5/proto/prysm/v1alpha1"
@@ -11,6 +11,7 @@ import (
 )
 
 // TODO: Test WithTrie version.
+// TODO: Move this to helpers.
 func TestHasExecutionWithdrawalCredentials(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -30,7 +31,7 @@ func TestHasExecutionWithdrawalCredentials(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, state_native.HasExecutionWithdrawalCredentials(tt.validator))
+			assert.Equal(t, tt.want, helpers.HasExecutionWithdrawalCredentials(tt.validator))
 		})
 	}
 }

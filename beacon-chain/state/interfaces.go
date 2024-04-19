@@ -306,4 +306,5 @@ type WriteOnlyEIP7241 interface {
 	SetDepositBalanceToConsume(gwei uint64) error
 	SetPendingConsolidations(val []*ethpb.PendingConsolidation) error
 	DequeuePartialWithdrawals(idx uint64) error
+	AppendPendingConsolidation(val *ethpb.PendingConsolidation) error
 }

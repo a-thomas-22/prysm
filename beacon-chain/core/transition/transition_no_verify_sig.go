@@ -405,7 +405,7 @@ func VerifyBlobCommitmentCount(blk interfaces.ReadOnlyBeaconBlock) error {
 //	  for_ops(body.deposits, process_deposit)  # [Modified in EIP7251]
 //	  for_ops(body.voluntary_exits, process_voluntary_exit)  # [Modified in EIP7251]
 //	  for_ops(body.bls_to_execution_changes, process_bls_to_execution_change)
-//	  for_ops(body.execution_payload.withdraw_requests, process_execution_layer_withdraw_request)  # [New in EIP7251]
+//	  for_ops(body.execution_payload.withdraw_requests, process_execution_layer_withdraw_request)  # [New in EIP7002/EIP7251]
 //	  for_ops(body.consolidations, process_consolidation)  # [New in EIP7251]
 func eip7251Operations(
 	ctx context.Context,
@@ -418,6 +418,11 @@ func eip7251Operations(
 		return nil, err
 	}
 
+	st, err = eip7251.ProcessExecutionLayerWithdrawRequests(ctx, st, nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "could not process execution layer withdrawal requests")
+	}
+
 	cs, err := block.Body().Consolidations()
 	if err != nil {
 		return nil, errors.Wrap(err, "could not get consolidations")
@@ -427,7 +432,6 @@ func eip7251Operations(
 		return nil, errors.Wrap(err, "could not process consolidations")
 	}
 
-	// TODO
 	return st, nil
 }
 

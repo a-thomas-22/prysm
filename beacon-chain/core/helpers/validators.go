@@ -534,3 +534,30 @@ func HasCompoundingWithdrawalCredential(v *ethpb.Validator) bool {
 func isCompoundingWithdrawalCredential(creds []byte) bool {
 	return bytes.HasPrefix(creds, []byte{params.BeaconConfig().CompoundingWithdrawalPrefix})
 }
+
+// HasExecutionWithdrawalCredentials checks if the validator has an execution withdrawal credential or compounding credential.
+// New in EIP-7251: https://eips.ethereum.org/EIPS/eip-7251
+//
+// Spec definition:
+//
+//	def has_execution_withdrawal_credential(validator: Validator) -> bool:
+//	    """
+//	    Check if ``validator`` has a 0x01 or 0x02 prefixed withdrawal credential.
+//	    """
+//	    return has_compounding_withdrawal_credential(validator) or has_eth1_withdrawal_credential(validator)
+func HasExecutionWithdrawalCredentials(v *ethpb.Validator) bool {
+	if v == nil {
+		return false
+	}
+	return HasCompoundingWithdrawalCredential(v) || HasETH1WithdrawalCredential(v)
+}
+
+// IsSameWithdrawalCredentials returns true if both validators have the same withdrawal credentials.
+//
+//	return a.withdrawal_credentials[12:] == b.withdrawal_credentials[12:]
+func IsSameWithdrawalCredentials(a, b *ethpb.Validator) bool {
+	if len(a.WithdrawalCredentials) <= 12 || len(b.WithdrawalCredentials) <= 12 {
+		return false
+	}
+	return bytes.Equal(a.WithdrawalCredentials[12:], b.WithdrawalCredentials[12:])
+}

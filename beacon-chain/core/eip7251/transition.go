@@ -9,8 +9,10 @@ import (
 	e "github.com/prysmaticlabs/prysm/v5/beacon-chain/core/epoch"
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/core/epoch/precompute"
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/core/helpers"
+	"github.com/prysmaticlabs/prysm/v5/beacon-chain/core/signing"
 	"github.com/prysmaticlabs/prysm/v5/beacon-chain/state"
 	"github.com/prysmaticlabs/prysm/v5/config/params"
+	"github.com/prysmaticlabs/prysm/v5/crypto/bls"
 	ethpb "github.com/prysmaticlabs/prysm/v5/proto/prysm/v1alpha1"
 	"github.com/prysmaticlabs/prysm/v5/time/slots"
 	"go.opencensus.io/trace"
@@ -316,6 +318,11 @@ func ProcessConsolidations(ctx context.Context, st state.BeaconState, cs []*ethp
 		return nil, errors.New("nil consolidations")
 	}
 
+	domain, err := signing.ComputeDomain(params.BeaconConfig().DomainConsolidation, st.Fork().CurrentVersion, st.GenesisValidatorsRoot())
+	if err != nil {
+		return nil, err
+	}
+
 	for _, c := range cs {
 		if c == nil || c.Message == nil {
 			return nil, errors.New("nil consolidation")
@@ -362,7 +369,55 @@ func ProcessConsolidations(ctx context.Context, st state.BeaconState, cs []*ethp
 		if currentEpoch < c.Message.Epoch {
 			return nil, errors.New("consolidation is not valid yet")
 		}
+
+		if !helpers.HasExecutionWithdrawalCredentials(source) {
+			return nil, errors.New("source does not have execution withdrawal credentials")
+		}
+		if !helpers.HasExecutionWithdrawalCredentials(target) {
+			return nil, errors.New("target does not have execution withdrawal credentials")
+		}
+		if !helpers.IsSameWithdrawalCredentials(source, target) {
+			return nil, errors.New("source and target have different withdrawal credentials")
+		}
+
+		sr, err := signing.ComputeSigningRoot(c.Message, domain)
+		if err != nil {
+			return nil, err
+		}
+		sourcePk, err := bls.PublicKeyFromBytes(source.PublicKey)
+		if err != nil {
+			return nil, errors.Wrap(err, "could not convert bytes to public key")
+		}
+		targetPk, err := bls.PublicKeyFromBytes(target.PublicKey)
+		if err != nil {
+			return nil, errors.Wrap(err, "could not convert bytes to public key")
+		}
+		sig, err := bls.SignatureFromBytes(c.Signature)
+		if err != nil {
+			return nil, errors.Wrap(err, "could not convert bytes to signature")
+		}
+		if !sig.FastAggregateVerify([]bls.PublicKey{sourcePk, targetPk}, sr) {
+			return nil, errors.New("consolidation signature verification failed")
+		}
+
+		sEE, err := ComputeConsolidationEpochAndUpdateChurn(ctx, st, source.EffectiveBalance)
+		if err != nil {
+			return nil, err
+		}
+		source.ExitEpoch = sEE
+		source.WithdrawableEpoch = sEE + params.BeaconConfig().MinValidatorWithdrawabilityDelay
+		if err := st.UpdateValidatorAtIndex(c.Message.SourceIndex, source); err != nil {
+			return nil, err
+		}
+		if err := st.AppendPendingConsolidation(c.Message.ToPendingConsolidation()); err != nil {
+			return nil, err
+		}
 	}
 
-	return nil, errors.New("not implemented")
+	return st, nil
+}
+
+func ProcessExecutionLayerWithdrawRequests(ctx context.Context, st state.BeaconState, wds []*ethpb.ExecutionLayerWithdrawalRequest) (state.BeaconState, error) {
+	// TODO: Need to align with James He. This is a placeholder implementation.
+	panic("implement me")
 }

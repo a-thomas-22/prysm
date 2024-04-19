@@ -6,6 +6,8 @@ import (
 	"github.com/prysmaticlabs/prysm/v5/runtime/version"
 )
 
+// TODO: This file has getters and setters related to EIP-7251. Split it up!
+
 func (b *BeaconState) EarliestConsolidationEpoch() (primitives.Epoch, error) {
 	if b.version < version.EIP7251 {
 		return 0, errNotSupported("EarliestConsolidationEpoch", b.version)
@@ -109,5 +111,16 @@ func (b *BeaconState) SetPendingConsolidations(val []*ethpb.PendingConsolidation
 	defer b.lock.Unlock()
 
 	b.pendingConsolidations = val
+	return nil
+}
+
+func (b *BeaconState) AppendPendingConsolidation(val *ethpb.PendingConsolidation) error {
+	if b.version < version.EIP7251 {
+		return errNotSupported("AppendPendingConsolidation", b.version)
+	}
+	b.lock.Lock() // TODO: Is this necessary?
+	defer b.lock.Unlock()
+
+	b.pendingConsolidations = append(b.pendingConsolidations, val)
 	return nil
 }

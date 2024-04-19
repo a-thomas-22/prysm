@@ -205,7 +205,7 @@ func isFullyWithdrawableValidator(val *ethpb.Validator, balance uint64, epoch pr
 
 	// EIP-7251 logic
 	if epoch >= params.BeaconConfig().EIP7251ForkEpoch {
-		return HasExecutionWithdrawalCredentials(val) && val.WithdrawableEpoch <= epoch
+		return helpers.HasExecutionWithdrawalCredentials(val) && val.WithdrawableEpoch <= epoch
 	}
 
 	return helpers.HasETH1WithdrawalCredential(val) && val.WithdrawableEpoch <= epoch
@@ -238,7 +238,7 @@ func isPartiallyWithdrawableValidator(val *ethpb.Validator, balance uint64, epoc
 		hasMaxBalance := val.EffectiveBalance == maxEB
 		hasExcessBalance := balance > maxEB
 
-		return HasExecutionWithdrawalCredentials(val) &&
+		return helpers.HasExecutionWithdrawalCredentials(val) &&
 			hasMaxBalance &&
 			hasExcessBalance
 	}
